@@ -6,53 +6,196 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
+# 🍽️ Resto Kay-Y – Système Intelligent de Gestion de Restaurant
 
-## About Laravel
+## 📌 Présentation
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+**Resto Kay-Y** est une application web moderne développée avec **Laravel** permettant la gestion complète d’un restaurant avec menu digital et commandes en temps réel.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Le système permet aux clients de scanner un **QR Code** depuis leur table afin d’accéder au menu, ajouter des plats au panier et envoyer leurs commandes directement en cuisine.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## ✨ Fonctionnalités principales
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 👨‍🍳 Gestion Cuisine
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+* Réception des commandes en temps réel
+* Acceptation des commandes
+* Mise à jour du statut :
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+  * Nouvelle commande
+  * Acceptée
+  * En préparation
+  * Prête
+  * Servie
+* Historique des ventes
+* Archivage automatique des commandes terminées
 
-## Agentic Development
+---
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### 🍽️ Menu Digital QR Code
+
+* QR Code unique pour chaque table
+* Accès rapide au menu sans application
+* Interface mobile moderne et responsive
+* Recherche et filtrage par catégorie
+* Images et descriptions des plats
+
+---
+
+### 🛒 Panier Intelligent
+
+* Ajout / suppression de plats
+* Modification des quantités
+* Calcul automatique :
+
+  * Sous-total
+  * Service (10%)
+  * Total
+* Notes personnalisées pour la cuisine
+* Sauvegarde locale du panier
+
+---
+
+### ⚡ Commandes Temps Réel
+
+Grâce à **Laravel Broadcasting + Pusher** :
+
+* Les commandes apparaissent instantanément en cuisine
+* Les statuts sont mis à jour sans recharger la page
+* Communication rapide entre client et cuisine
+
+---
+
+### 🪑 Gestion des Tables
+
+* Création des tables
+* Génération automatique des QR Codes
+* Accès menu personnalisé par table
+
+---
+
+### 📊 Historique & Administration
+
+* Dashboard administrateur
+* Gestion des plats
+* Gestion des catégories
+* Gestion des tables
+* Historique des commandes et ventes
+
+---
+
+## 🛠️ Technologies utilisées
+
+### Backend
+
+* Laravel
+* PHP
+* MySQL
+* Eloquent ORM
+* Broadcasting Events
+
+### Frontend
+
+* HTML5
+* CSS3
+* JavaScript
+* Responsive Design
+
+### Temps Réel
+
+* Pusher
+* Laravel Echo
+
+### QR Code
+
+* Simple QrCode
+
+---
+
+## ⚙️ Installation
+
+### 1. Cloner le projet
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone votre-repository.git
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. Installer les dépendances
 
-## Contributing
+```bash
+composer install
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+npm install
+```
 
-## Code of Conduct
+### 3. Configurer le fichier .env
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Configurer :
 
-## Security Vulnerabilities
+* Base de données MySQL
+* Pusher
+* APP_URL
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Puis :
 
-## License
+```bash
+php artisan key:generate
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 4. Migration Base de données
+
+```bash
+php artisan migrate
+```
+
+### 5. Lancer le projet
+
+```bash
+php artisan serve
+```
+
+---
+
+## 📱 Utilisation
+
+### Client
+
+1. Scanner QR Code
+2. Choisir les plats
+3. Ajouter au panier
+4. Envoyer commande
+5. Suivre la préparation
+
+### Cuisine
+
+1. Voir commandes instantanément
+2. Accepter
+3. Préparer
+4. Marquer prête
+5. Servir et archiver
+
+---
+
+## 🔒 Sécurité
+
+* Protection CSRF Laravel
+* Validation des formulaires
+* Gestion sécurisée des requêtes
+
+---
+
+## 👨‍💻 Développeur
+
+Projet développé par **Jocelyn Youvens**
+Application Laravel de gestion de restaurant moderne avec QR Code et commandes temps réel.
+
+---
+
+## 📄 Licence
+
+Projet éducatif et professionnel – Tous droits réservés.
+
