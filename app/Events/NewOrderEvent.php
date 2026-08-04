@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Events;
 
 use App\Models\Commande;
@@ -15,7 +16,10 @@ class NewOrderEvent implements ShouldBroadcast
 
     public function __construct(Commande $commande)
     {
-        $this->commande = $commande->load('items.plat', 'table');
+        $this->commande = $commande->load([
+            'table',
+            'items.plat'
+        ]);
     }
 
     public function broadcastOn()
@@ -26,5 +30,25 @@ class NewOrderEvent implements ShouldBroadcast
     public function broadcastAs()
     {
         return 'new-order';
+    }
+
+    public function broadcastWith()
+    {
+        return [
+            'commande' => [
+                'id' => $this->commande->id,
+                'table' => [
+                    'numero' => $this->commande->table->numero
+                ],
+                'items' => $this->commande->items->map(function ($item) {
+                    return [
+                        'quantite' => $item->quantite,
+                        'plat' => [
+                            'nom' => $item->plat->nom
+                        ]
+                    ];
+                })->values()
+            ]
+        ];
     }
 }

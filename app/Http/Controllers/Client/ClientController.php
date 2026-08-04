@@ -93,18 +93,38 @@ class ClientController extends Controller
 
         // Kreyasyon detay kòmand yo
         foreach ($cart as $platId => $item) {
-            CommandeItem::create([
-                'commande_id' => $commande->id,
-                'plat_id' => $platId,
-                'quantite' => $item['quantite'],
-                'prix' => $item['prix']
-            ]);
-        }
 
-        session()->forget('cart');
+    CommandeItem::create([
+        'commande_id' => $commande->id,
+        'plat_id' => $platId,
+        'quantite' => $item['quantite'],
+        'prix' => $item['prix']
+    ]);
 
-        // Notifye kwizin nan
-        broadcast(new NewOrderEvent($commande))->toOthers();
+}
+
+/*
+|--------------------------------------------------------------------------
+| Recharge toutes les relations
+|--------------------------------------------------------------------------
+*/
+
+$commande = Commande::with([
+    'table',
+    'items.plat'
+])->find($commande->id);
+
+session()->forget('cart');
+
+/*
+|--------------------------------------------------------------------------
+| Broadcast
+|--------------------------------------------------------------------------
+*/
+
+broadcast(
+    new NewOrderEvent($commande)
+)->toOthers();
 
         return response()->json([
             'success' => true,

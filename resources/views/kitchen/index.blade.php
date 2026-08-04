@@ -315,96 +315,497 @@
 
 <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 
+
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+/*=========================================================
+=                                                         =
+=       RESTO KAY-Y - CUISINE LIVE                        =
+=       COMPLETE JAVASCRIPT (CORRIGÉ)                     =
+=                                                         =
+=========================================================*/
 
-    const sound = document.getElementById('notifSound');
-    const btn = document.getElementById('btnUnlock');
 
-    let unlocked = localStorage.getItem('soundUnlocked') === 'true';
-    if (unlocked) btn.style.display = 'none';
+/*=====================================
+=       CONFIGURATION                 =
+=====================================*/
 
-    btn.onclick = function () {
+const sound = document.getElementById("notifSound");
+const btn = document.getElementById("btnUnlock");
+
+let unlocked = localStorage.getItem("soundUnlocked") === "true";
+
+if(unlocked && btn){
+    btn.style.display = "none";
+}
+
+
+
+/*=====================================
+=       ACTIVER LE SON                =
+=====================================*/
+
+if(btn && sound){
+    btn.onclick = function(){
         sound.play()
-            .then(() => {
-                sound.pause();
-                sound.currentTime = 0;
-                unlocked = true;
-                localStorage.setItem('soundUnlocked', 'true');
-                btn.style.display = 'none';
-                alert("✅ Son activé");
-            })
-            .catch(err => console.log(err));
-    };
-
-    // Pusher
-    const pusher = new Pusher(
-        '{{ config("broadcasting.connections.reverb.key") }}',
-        {
-            wsHost: '{{ config("broadcasting.connections.reverb.options.host") }}',
-            wsPort: {{ config("broadcasting.connections.reverb.options.port") }},
-            forceTLS: false,
-            disableStats: true,
-            cluster: 'mt1'
-        }
-    );
-
-    const channel = pusher.subscribe('kitchen');
-
-    channel.bind('new-order', function (e) {
-        console.log("🔥 Nouvelle commande", e);
-
-        if (localStorage.getItem('soundUnlocked') === 'true') {
+        .then(()=>{
+            sound.pause();
             sound.currentTime = 0;
-            sound.play()
-                .then(() => { sound.onended = function () { location.reload(); }; })
-                .catch(err => {
-                    console.log("Erreur son:", err);
-                    setTimeout(() => location.reload(), 5000);
-                });
-        } else {
-            setTimeout(() => location.reload(), 5000);
+            localStorage.setItem("soundUnlocked", "true");
+            btn.style.display = "none";
+            alert("✅ Son activé");
+        })
+        .catch(err=>{
+            console.log(err);
+        });
+    };
+}
+
+
+
+/*=====================================
+=       PUSHER                        =
+=====================================*/
+
+const pusher = new Pusher(
+    '{{ config("broadcasting.connections.reverb.key") }}',
+    {
+        wsHost: '{{ config("broadcasting.connections.reverb.options.host") }}',
+        wsPort: {{ config("broadcasting.connections.reverb.options.port") }},
+        forceTLS: false,
+        disableStats: true,
+        cluster: 'mt1'
+    }
+);
+
+const channel = pusher.subscribe('kitchen');
+
+
+
+/*=====================================
+=       HORLOGE LIVE                  =
+=====================================*/
+
+const clock = document.getElementById('passClock');
+
+function updateClock(){
+    if(!clock) return;
+    clock.innerHTML = new Date().toLocaleTimeString('fr-FR');
+}
+
+updateClock();
+setInterval(updateClock, 1000);
+
+
+
+/*=====================================
+=       TIMER DES TICKETS             =
+=====================================*/
+
+const WARNING_TIME = 10 * 60;
+const DANGER_TIME = 15 * 60;
+
+function pad(n){
+    return n.toString().padStart(2, '0');
+}
+
+function updateTicketTimers(){
+    document.querySelectorAll('.ticket[data-created]').forEach(ticket => {
+        const created = parseInt(ticket.dataset.created);
+        const statut = ticket.dataset.statut;
+        const timer = ticket.querySelector('[data-timer]');
+
+        if(!timer) return;
+
+        const elapsed = Math.floor(Date.now() / 1000) - created;
+        const min = Math.floor(elapsed / 60);
+        const sec = elapsed % 60;
+
+        timer.innerHTML = pad(min) + ":" + pad(sec);
+
+        ticket.classList.remove("ticket--warn", "ticket--late");
+
+        if(statut !== "prete"){
+            if(elapsed >= DANGER_TIME){
+                ticket.classList.add("ticket--late");
+            } else if(elapsed >= WARNING_TIME){
+                ticket.classList.add("ticket--warn");
+            }
         }
     });
+}
 
-    pusher.connection.bind('connected', () => console.log("✅ WebSocket connecté"));
+updateTicketTimers();
+setInterval(updateTicketTimers, 1000);
 
-    // --- Live clock in the header ---
-    const clockEl = document.getElementById('passClock');
-    function updateClock() {
-        clockEl.textContent = new Date().toLocaleTimeString('fr-FR');
+
+
+/*=====================================
+=       LECTURE VOCALE                =
+=====================================*/
+
+/*=====================================
+=       LECTURE VOCALE (CORRIGÉE)     =
+=====================================*/
+
+function speakOrder(e){
+    console.log("📢 speakOrder te resevwa:", e);
+
+    if(!('speechSynthesis' in window)){
+        console.log("Speech API indisponible");
+        return;
     }
-    updateClock();
-    setInterval(updateClock, 1000);
 
-    // --- Per-ticket elapsed timer, escalating color as an order ages ---
-    const WARN_AFTER = 10 * 60; // seconds
-    const LATE_AFTER = 15 * 60; // seconds
+    let plats = "";
 
-    function pad(n) { return n.toString().padStart(2, '0'); }
+    // Si e gen items oubyen e.commande.items
+    let itemsList = e.items ? e.items : (e.commande && e.commande.items ? e.commande.items : []);
 
-    function updateTimers() {
-        document.querySelectorAll('.ticket[data-created]').forEach(ticket => {
-            const created = parseInt(ticket.dataset.created, 10);
-            const statut = ticket.dataset.statut;
-            const timerEl = ticket.querySelector('[data-timer]');
-            if (!created || !timerEl) return;
-
-            const elapsed = Math.max(0, Math.floor(Date.now() / 1000) - created);
-            const mins = Math.floor(elapsed / 60);
-            const secs = elapsed % 60;
-            timerEl.textContent = pad(mins) + ':' + pad(secs);
-
-            ticket.classList.remove('ticket--warn', 'ticket--late');
-            if (statut !== 'prete') {
-                if (elapsed >= LATE_AFTER) ticket.classList.add('ticket--late');
-                else if (elapsed >= WARN_AFTER) ticket.classList.add('ticket--warn');
+    if(Array.isArray(itemsList) && itemsList.length > 0){
+        let itemsArray = [];
+        itemsList.forEach(item => {
+            let quantite = item.quantite ? item.quantite : 1;
+            let nomPlat = item.nom ? item.nom : (item.plat && item.plat.nom ? item.plat.nom : '');
+            
+            if(nomPlat) {
+                itemsArray.push(quantite + " " + nomPlat);
             }
         });
+        plats = itemsArray.join(", ");
     }
-    updateTimers();
-    setInterval(updateTimers, 1000);
+
+    let numeroTable = 'N/A';
+    if(e.table && e.table.numero){
+        numeroTable = e.table.numero;
+    } else if(e.commande && e.commande.table && e.commande.table.numero){
+        numeroTable = e.commande.table.numero;
+    }
+
+    let texte = "Attention. Nouvelle commande. Table numéro " + numeroTable + ".";
+    
+    if(plats !== ""){
+        texte += " " + plats + ".";
+    }
+    
+    texte += " Merci.";
+
+    console.log("Texte prononcé:", texte);
+
+    speechSynthesis.cancel();
+    const voice = new SpeechSynthesisUtterance(texte);
+    voice.lang = "fr-FR";
+    voice.rate = 0.9;
+    voice.pitch = 1;
+    voice.volume = 1;
+
+    speechSynthesis.speak(voice);
+}
+
+
+/*=====================================
+=       DEBUG                         =
+=====================================*/
+
+pusher.connection.bind('connected', () => {
+    console.log("✅ WebSocket connecté");
 });
+
+
+
+/*=====================================
+=       NOUVELLE COMMANDE             =
+=====================================*/
+channel.bind('new-order', function(e){
+    console.log("🔥 Lòt evènman 'new-order' resevwa:", e);
+
+    addOrderCard(e);
+
+function finishAction(){
+
+    speakOrder(e);
+
+    if("speechSynthesis" in window){
+
+        speechSynthesis.cancel();
+
+        const plats = e.commande.items
+            .map(item => item.quantite + " " + item.plat.nom)
+            .join(", ");
+
+        const texte =
+            "Attention. Nouvelle commande de la table numéro " +
+            e.commande.table.numero +
+            ". " +
+            plats +
+            ". Merci.";
+
+        const voice = new SpeechSynthesisUtterance(texte);
+
+        voice.lang = "fr-FR";
+        voice.rate = 0.9;
+        voice.pitch = 1;
+        voice.volume = 1;
+
+        // 🔥 Reload sèlman lè vwa a fini
+        voice.onend = function(){
+
+            location.reload();
+
+        };
+
+        speechSynthesis.speak(voice);
+
+    }else{
+
+        location.reload();
+
+    }
+
+}
+
+    if(localStorage.getItem("soundUnlocked") === "true" && sound){
+        sound.currentTime = 0;
+        sound.play()
+        .then(function(){
+            sound.onended = function(){
+                finishAction();
+            };
+        })
+        .catch(function(){
+            finishAction();
+        });
+    } else {
+        finishAction();
+    }
+});
+
+
+
+/*=====================================
+=       COMMANDE ACCEPTÉE             =
+=====================================*/
+
+channel.bind('order-accepted', function(e){
+    console.log("👨‍🍳 Préparation", e);
+
+    if(localStorage.getItem("soundUnlocked") === "true" && sound){
+        sound.currentTime = 0;
+        sound.play().catch(()=>{});
+    }
+
+    // Sipozé jere si ID a nan e.id oubyen e.commande.id
+    const commandeId = e.id ? e.id : (e.commande ? e.commande.id : null);
+    const card = document.getElementById("order-" + commandeId);
+    
+    if(card){
+        card.dataset.statut = "en_preparation";
+        const badge = card.querySelector(".badge");
+        if(badge){
+            badge.innerHTML = "👨‍🍳 En préparation";
+            badge.style.background = "#fff3cd";
+            badge.style.color = "#d97706";
+        }
+    }
+
+    showToast("👨‍🍳 Commande #" + (commandeId || '') + " en préparation");
+});
+
+
+
+/*=====================================
+=       COMMANDE PRÊTE                =
+=====================================*/
+
+channel.bind('order-ready', function(e){
+    console.log("🍽️ Prête", e);
+
+    if(localStorage.getItem("soundUnlocked") === "true" && sound){
+        sound.currentTime = 0;
+        sound.play().catch(()=>{});
+    }
+
+    const commandeId = e.id ? e.id : (e.commande ? e.commande.id : null);
+    const card = document.getElementById("order-" + commandeId);
+    
+    if(card){
+        card.style.transition = ".6s";
+        card.style.opacity = "0";
+        card.style.transform = "scale(.8)";
+        setTimeout(function(){
+            card.remove();
+        }, 600);
+    }
+
+    showToast("✅ Commande #" + (commandeId || '') + " prête");
+});
+
+
+
+/*=====================================
+=       DEBUG GLOBAL                  =
+=====================================*/
+
+channel.bind_global(function(event, data){
+    console.log("📡 EVENT :", event, data);
+});
+
+
+
+/*=====================================
+=       TOAST PREMIUM                 =
+=====================================*/
+
+function showToast(message){
+    const toast = document.createElement("div");
+    toast.className = "live-toast";
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+
+    setTimeout(function(){
+        toast.classList.add("show");
+    }, 100);
+
+    setTimeout(function(){
+        toast.classList.remove("show");
+        setTimeout(function(){
+            toast.remove();
+        }, 400);
+    }, 3500);
+}
+
+
+
+/*=====================================
+=       AJOUT D'UNE COMMANDE          =
+=====================================*/
+
+function addOrderCard(e){
+    const list = document.getElementById("order-list");
+    if(!list) return;
+
+    const commandeId = e.id ? e.id : (e.commande ? e.commande.id : null);
+    if(!commandeId) return;
+
+    if(document.getElementById("order-" + commandeId)){
+        return;
+    }
+
+    let plats = "";
+    let itemsList = e.items ? e.items : (e.commande && e.commande.items ? e.commande.items : []);
+
+    if(Array.isArray(itemsList)){
+        itemsList.forEach(function(item){
+            let nomPlat = item.nom ? item.nom : (item.plat ? item.plat.nom : 'Plat');
+            plats += `
+            <div class="item-row">
+                <span>${nomPlat}</span>
+                <b>x${item.quantite}</b>
+            </div>
+            `;
+        });
+    }
+
+    let numeroTable = 'N/A';
+    if(e.table && e.table.numero){
+        numeroTable = e.table.numero;
+    } else if(e.commande && e.commande.table && e.commande.table.numero){
+        numeroTable = e.commande.table.numero;
+    }
+
+    const html = `
+    <div
+    class="ticket"
+    id="order-${commandeId}"
+    data-created="${Math.floor(Date.now()/1000)}"
+    data-statut="nouvelle"
+    >
+        <div class="ticket-header">
+            <h3>🍽️ Commande #${commandeId}</h3>
+            <span class="badge">Nouvelle</span>
+        </div>
+        <div class="ticket-table">
+            🪑 Table <b>${numeroTable}</b>
+        </div>
+        <div class="ticket-items">
+            ${plats}
+        </div>
+        <div class="ticket-footer">
+            ⏱️ <span data-timer>00:00</span>
+        </div>
+    </div>
+    `;
+
+    list.insertAdjacentHTML("afterbegin", html);
+    updateTicketTimers();
+}
+
+
+
+/*=====================================
+=       ANIMATION CARD                =
+=====================================*/
+
+document.addEventListener("animationend", function(e){
+    if(e.target.classList.contains("ticket")){
+        e.target.classList.remove("pulse");
+    }
+});
+
+
+
+/*=====================================
+=       RELOAD INTELLIGENT            =
+=====================================*/
+
+let reloadTimer = null;
+
+function smartReload(){
+    clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(function(){
+        location.reload();
+    }, 500);
+}
+
+document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState === "visible"){
+        smartReload();
+    }
+});
+
+window.addEventListener("focus", function(){
+    smartReload();
+});
+
+
+
+/*=====================================
+=       TEST VOCALE                   =
+=====================================*/
+
+window.testVoice = function(){
+    speakOrder({
+        table: {
+            numero: 5
+        },
+        items: [
+            {
+                quantite: 2,
+                nom: "Pizza"
+            },
+            {
+                quantite: 1,
+                nom: "Hamburger"
+            }
+        ]
+    });
+};
+
+
+
+/*=====================================
+=       FIN                           =
+=====================================*/
+
+console.log("🍽️ Cuisine LIVE Premium Ready");
 </script>
 
 </body>
