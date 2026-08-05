@@ -65,7 +65,9 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
     Route::get('/ventes', [VentesController::class, 'index']);
     Route::post('/commandes/archive/{id}', [VentesController::class, 'archive']);
     Route::post('/commandes/cloturer-journee', [VentesController::class, 'cloturerJournee']);
-    
+    Route::resource('stock', \App\Http\Controllers\Admin\StockController::class);
+Route::get('/stock-mouvement', [\App\Http\Controllers\Admin\StockController::class, 'mouvementForm']);
+Route::post('/stock-mouvement', [\App\Http\Controllers\Admin\StockController::class, 'mouvementStore']);
     Route::resource('plats', PlatController::class);
     Route::resource('tables', TableController::class);
     Route::resource('categories', CategoryController::class);

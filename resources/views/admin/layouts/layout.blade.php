@@ -772,6 +772,10 @@ display:none;
     <i class="fa-solid fa-users-gear"></i>
     Employes
 </a>
+<a href="/admin/stock">
+    <i class="fa-solid fa-boxes-stacked"></i>
+    Stocks & Alertes
+</a>
     </div>
 
     <!-- Bouton Dekonekte Anba Nèt -->
