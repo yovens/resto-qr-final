@@ -710,118 +710,76 @@ display:none;
 
 <body>
 
-
-
 <!-- SIDEBAR -->
+<div class="sidebar" id="sidebar" style="overflow-y: auto; max-height: 100vh; display: flex; flex-direction: column;">
+    
+    <!-- Pati anwo (Logo ak Lyen yo) -->
+    <div style="flex: 1;">
+        <div class="logo">
+            <i class="fa-solid fa-utensils"></i>
+            RESTO KAY-Y
+        </div>
 
-<div class="sidebar" id="sidebar">
+        <div class="menu-title">
+            Principal
+        </div>
 
+        <a href="/admin/dashboard">
+            <i class="fa-solid fa-chart-line"></i>
+            Dashboard
+        </a>
 
-<div class="logo">
+        <div class="menu-title">
+            Restaurant
+        </div>
 
-<i class="fa-solid fa-utensils"></i>
+        <a href="/admin/plats">
+            <i class="fa-solid fa-burger"></i>
+            Menu
+        </a>
 
-RESTO KAY-Y
+        <a href="/admin/categories">
+            <i class="fa-solid fa-folder"></i>
+            Catégories
+        </a>
 
-</div>
+        <a href="/admin/tables">
+            <i class="fa-solid fa-chair"></i>
+            Tables
+        </a>
 
+        <a href="/cuisine">
+            <i class="fa-solid fa-fire"></i>
+            Cuisine
+            <span class="badge">
+                5
+            </span>
+        </a>
 
+        <div class="menu-title">
+            Finance
+        </div>
 
-<div class="menu-title">
-
-Principal
-
-</div>
-
-
-<a href="/admin/dashboard">
-
-<i class="fa-solid fa-chart-line"></i>
-
-Dashboard
-
+        <a href="/admin/ventes">
+            <i class="fa-solid fa-money-bill"></i>
+            Ventes
+        </a>
+        <a href="/admin/employes">
+    <i class="fa-solid fa-users-gear"></i>
+    Employes
 </a>
+    </div>
 
-
-
-<div class="menu-title">
-
-Restaurant
-
-</div>
-
-
-<a href="/admin/plats">
-
-<i class="fa-solid fa-burger"></i>
-
-Menu
-
-</a>
-
-
-<a href="/admin/categories">
-
-<i class="fa-solid fa-folder"></i>
-
-Catégories
-
-</a>
-
-
-
-<a href="/admin/tables">
-
-<i class="fa-solid fa-chair"></i>
-
-Tables
-
-</a>
-
-
-
-
-<a href="/cuisine">
-
-
-<i class="fa-solid fa-fire"></i>
-
-
-Cuisine
-
-
-<span class="badge">
-
-5
-
-</span>
-
-
-</a>
-
-
-
-
-
-<div class="menu-title">
-
-Finance
-
-</div>
-
-
-<a href="/admin/ventes">
-
-
-<i class="fa-solid fa-money-bill"></i>
-
-
-Ventes
-
-
-</a>
-
-
+    <!-- Bouton Dekonekte Anba Nèt -->
+    <div style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto;">
+        <form method="POST" action="{{ route('logout') }}">
+            @csrf
+            <button type="submit" style="width: 100%; background: transparent; border: none; color: #ff6b6b; display: flex; align-items: center; gap: 10px; padding: 10px; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 6px; text-align: left;" onmouseover="this.style.background='rgba(255,107,107,0.1)'" onmouseout="this.style.background='transparent'">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                 Déconnexion
+            </button>
+        </form>
+    </div>
 
 </div>
 
@@ -923,7 +881,6 @@ Restaurant
 
 
 </div>
-
 
 
 
