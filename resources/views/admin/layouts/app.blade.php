@@ -702,6 +702,8 @@ display:none;
         70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
         100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
+
+    
 </style>
 
 
@@ -771,6 +773,10 @@ display:none;
 <a href="/admin/stock">
     <i class="fa-solid fa-boxes-stacked"></i>
     Stocks & Alertes
+</a>
+<a href="/admin/suppliers">
+    <i class="fa-solid fa-truck-field"></i>
+    Fournisseurs
 </a>
     </div>
 

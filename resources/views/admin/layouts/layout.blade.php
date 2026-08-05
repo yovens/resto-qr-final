@@ -776,6 +776,10 @@ display:none;
     <i class="fa-solid fa-boxes-stacked"></i>
     Stocks & Alertes
 </a>
+<a href="/admin/suppliers">
+    <i class="fa-solid fa-truck-field"></i>
+    Fournisseurs
+</a>
     </div>
 
     <!-- Bouton Dekonekte Anba Nèt -->

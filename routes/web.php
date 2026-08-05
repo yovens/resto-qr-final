@@ -72,6 +72,8 @@ Route::post('/stock-mouvement', [\App\Http\Controllers\Admin\StockController::cl
     Route::resource('tables', TableController::class);
     Route::resource('categories', CategoryController::class);
     Route::resource('employes', \App\Http\Controllers\Admin\EmployeController::class);
+    Route::resource('suppliers', \App\Http\Controllers\Admin\SupplierController::class);
+    
     Route::delete('/commandes/{id}', function ($id) {
         Commande::destroy($id);
         return back();
