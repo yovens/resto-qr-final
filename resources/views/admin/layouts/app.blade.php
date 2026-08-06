@@ -17,7 +17,306 @@ Admin Restaurant
 
 
 <style>
+      :root{
+            --dark-900:#111827;
+            --dark-800:#1f2937;
+            --dark-700:#374151;
+            --gray-500:#6b7280;
+            --gray-400:#9ca3af;
+            --gray-200:#e5e7eb;
+            --gray-100:#f3f4f6;
+            --gray-50:#f9fafb;
+            --bg:#f8fafc;
 
+            --accent:#fb923c;       /* orange resto - couleur de marque */
+            --accent-dark:#ea580c;
+            --accent-soft:#fff7ed;
+
+            --info:#3b82f6;
+            --info-dark:#2563eb;
+            --success:#10b981;
+            --success-dark:#059669;
+            --warning:#f59e0b;
+            --danger:#ef4444;
+            --danger-dark:#dc2626;
+
+            --radius-lg:20px;
+            --radius-md:15px;
+            --radius-sm:10px;
+
+            --shadow-sm:0 5px 20px rgba(0,0,0,.05);
+            --shadow-md:0 8px 25px rgba(0,0,0,.06);
+            --shadow-lg:0 10px 30px rgba(0,0,0,.15);
+
+            --gap-sm:12px;
+            --gap-md:20px;
+            --gap-lg:30px;
+
+            --sidebar-w:270px;
+        }
+
+        *{ box-sizing:border-box; }
+
+        body{
+            margin:0;
+            font-family:'Segoe UI', sans-serif;
+            background:var(--bg);
+            color:var(--dark-900);
+        }
+
+        /* =========================
+           SIDEBAR
+           ========================= */
+        .sidebar{
+            position:fixed;
+            left:0; top:0;
+            height:100vh;
+            width:var(--sidebar-w);
+            background:linear-gradient(180deg, var(--dark-900), var(--dark-800));
+            color:white;
+            padding:25px 18px;
+            z-index:1000;
+            display:flex;
+            flex-direction:column;
+            overflow-y:auto;
+            transition:.3s;
+        }
+
+        .sidebar-top{ flex:1; }
+
+        .logo{
+            display:flex;
+            align-items:center;
+            gap:12px;
+            font-size:22px;
+            font-weight:800;
+            padding:0 7px;
+            margin-bottom:36px;
+        }
+        .logo i{ color:var(--accent); font-size:28px; }
+
+        .menu-title{
+            font-size:11px;
+            font-weight:700;
+            letter-spacing:.06em;
+            text-transform:uppercase;
+            color:var(--gray-400);
+            margin:24px 7px 10px;
+        }
+        .menu-title:first-of-type{ margin-top:0; }
+
+        .sidebar nav a{
+            display:flex;
+            align-items:center;
+            gap:14px;
+            padding:12px 14px;
+            border-radius:14px;
+            color:#d1d5db;
+            text-decoration:none;
+            margin-bottom:4px;
+            font-weight:600;
+            font-size:14.5px;
+            transition:background .2s, color .2s, transform .2s;
+        }
+        .sidebar nav a i{
+            width:20px;
+            text-align:center;
+            font-size:15px;
+            flex-shrink:0;
+        }
+        .sidebar nav a:hover{
+            background:rgba(255,255,255,.08);
+            color:#fff;
+        }
+        .sidebar nav a.active{
+            background:var(--accent);
+            color:#fff;
+        }
+        .sidebar nav a.active:hover{ transform:none; }
+
+        .sidebar nav a .badge{
+            margin-left:auto;
+            background:var(--danger);
+            color:#fff;
+            padding:2px 8px;
+            border-radius:20px;
+            font-size:11px;
+            font-weight:700;
+            line-height:1.5;
+        }
+        .sidebar nav a .badge.pulse{ animation:pulse-anim 1.6s infinite; }
+
+        .sidebar-footer{
+            padding-top:15px;
+            margin-top:10px;
+            border-top:1px solid rgba(255,255,255,.1);
+        }
+        .btn-logout{
+            width:100%;
+            background:transparent;
+            border:none;
+            color:#f87171;
+            display:flex;
+            align-items:center;
+            gap:10px;
+            padding:10px 14px;
+            cursor:pointer;
+            font-size:14px;
+            font-weight:700;
+            border-radius:10px;
+            text-align:left;
+            transition:background .2s;
+        }
+        .btn-logout:hover{ background:rgba(248,113,113,.12); }
+
+        /* =========================
+           MAIN / TOPBAR
+           ========================= */
+      
+        /* KPI Grid */
+        .kpi-grid{
+            display:grid;
+            grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));
+            gap:var(--gap-md);
+            margin-bottom:var(--gap-lg);
+        }
+        .kpi-card{
+            background:#fff;
+            padding:22px;
+            border-radius:var(--radius-lg);
+            display:flex;
+            align-items:center;
+            gap:18px;
+            box-shadow:var(--shadow-md);
+            transition:transform .3s, box-shadow .3s;
+        }
+        .kpi-card:hover{ transform:translateY(-5px); box-shadow:0 12px 30px rgba(0,0,0,.1); }
+
+        .kpi-icon{
+            width:58px; height:58px;
+            border-radius:16px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:24px;
+            background:var(--accent-soft);
+            color:var(--accent-dark);
+            flex-shrink:0;
+        }
+        .kpi-info span{ font-size:13px; color:var(--gray-500); font-weight:600; }
+        .kpi-info h2{ margin:4px 0; font-size:21px; color:var(--dark-900); }
+        .kpi-info small{ font-size:11px; color:var(--success); font-weight:700; }
+
+        /* Secondary Grid (Objectif & Météo) */
+        .secondary-grid{
+            display:grid;
+            grid-template-columns:2fr 1fr;
+            gap:var(--gap-md);
+            margin-bottom:var(--gap-lg);
+        }
+        @media(max-width:900px){ .secondary-grid{ grid-template-columns:1fr; } }
+
+        .goal-box, .weather-box, .section-container, .chart-card{
+            background:#fff;
+            padding:24px;
+            border-radius:var(--radius-lg);
+            box-shadow:var(--shadow-md);
+        }
+
+        .goal-header{ display:flex; justify-content:space-between; font-weight:700; margin-bottom:12px; }
+        .progress-bar-bg{ height:13px; background:var(--gray-200); border-radius:10px; overflow:hidden; margin-bottom:12px; }
+        .progress-bar-fill{ height:100%; background:linear-gradient(90deg, var(--success), var(--success-dark)); border-radius:10px; transition:width .6s ease; }
+        .goal-footer{ display:flex; justify-content:space-between; font-size:12px; color:var(--gray-500); font-weight:600; }
+
+        .weather-box{
+            display:flex;
+            align-items:center;
+            gap:20px;
+            background:linear-gradient(135deg, #eff6ff, #dbeafe);
+        }
+        .w-icon{ font-size:42px; }
+        .weather-box h3{ margin:0; font-size:26px; color:#1e3a8a; }
+        .weather-box p{ margin:4px 0 0; font-size:13px; color:#1e40af; }
+
+        /* Charts Grid */
+        .charts-grid{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:var(--gap-md);
+            margin-bottom:var(--gap-lg);
+        }
+        @media(max-width:900px){ .charts-grid{ grid-template-columns:1fr; } }
+        .chart-card h3{ margin:0 0 14px; font-size:15px; color:var(--dark-900); }
+
+        /* Top Plats Grid */
+        .top-plats-grid{
+            display:grid;
+            grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+            gap:14px;
+            margin-top:15px;
+        }
+        .plat-card-item{
+            background:var(--gray-50);
+            padding:14px;
+            border-radius:var(--radius-md);
+            display:flex;
+            align-items:center;
+            gap:12px;
+            border:1px solid var(--gray-100);
+        }
+        .plat-badge-icon{
+            width:44px; height:44px;
+            border-radius:12px;
+            background:var(--accent-soft);
+            color:var(--accent-dark);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:19px;
+            flex-shrink:0;
+        }
+        .plat-details h4{ margin:0; font-size:14px; color:var(--dark-900); }
+        .plat-details small{ color:var(--gray-500); font-size:12px; }
+
+        /* Table Styles */
+        .table-responsive{ overflow-x:auto; }
+        table{ width:100%; border-collapse:collapse; margin-top:10px; }
+        th{ padding:13px 14px; text-align:left; font-size:12.5px; color:var(--gray-500); background:var(--gray-50); border-bottom:2px solid var(--gray-200); white-space:nowrap; }
+        td{ padding:13px 14px; border-bottom:1px solid var(--gray-100); font-size:14px; color:var(--dark-700); }
+        tbody tr:hover{ background:var(--gray-50); }
+
+        .badge-status{ padding:5px 12px; border-radius:20px; font-size:11px; font-weight:700; display:inline-block; }
+        .badge-status.new{ background:#dbeafe; color:#1e40af; }
+        .badge-status.prep{ background:#fef3c7; color:#92400e; }
+        .badge-status.ready{ background:#dcfce7; color:#166534; }
+
+        .btn-view{
+            background:var(--info-dark);
+            color:#fff;
+            padding:7px 14px;
+            border-radius:8px;
+            text-decoration:none;
+            font-size:12px;
+            font-weight:700;
+            display:inline-block;
+            transition:background .2s;
+        }
+        .btn-view:hover{ background:#1d4ed8; }
+
+        .live-badge-pulse{
+            display:flex; align-items:center; gap:6px;
+            font-size:12px; font-weight:700;
+            background:#ecfdf5; color:var(--success-dark);
+            padding:6px 12px; border-radius:20px;
+            border:1px solid #a7f3d0;
+        }
+        .pulse-dot{ width:8px; height:8px; background:var(--success); border-radius:50%; animation:pulse-anim 1.5s infinite; }
+
+        @keyframes pulse-anim{
+            0%{ transform:scale(.95); box-shadow:0 0 0 0 rgba(16,185,129,.7); }
+            70%{ transform:scale(1); box-shadow:0 0 0 8px rgba(16,185,129,0); }
+            100%{ transform:scale(.95); box-shadow:0 0 0 0 rgba(16,185,129,0); }
+        }
 *{
 
 box-sizing:border-box;
@@ -703,7 +1002,435 @@ display:none;
         100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
-    
+    /* ===========================
+        MAIN
+=========================== */
+
+.main{
+
+    margin-left:260px;
+
+    min-height:100vh;
+
+    background:#f8fafc;
+
+}
+
+
+
+
+/* ===========================
+        TOPBAR
+=========================== */
+
+
+.topbar{
+
+
+    height:80px;
+
+    background:white;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    padding:0 30px;
+
+    border-bottom:1px solid #e5e7eb;
+
+    position:sticky;
+
+    top:0;
+
+    z-index:100;
+
+
+
+}
+
+
+
+
+/* MENU */
+
+.menu-toggle{
+
+    display:none;
+
+    border:none;
+
+    background:#f59e0b;
+
+    color:white;
+
+    width:42px;
+
+    height:42px;
+
+    border-radius:12px;
+
+    cursor:pointer;
+
+    font-size:20px;
+
+}
+
+
+
+
+
+/* SEARCH */
+
+
+.search-box{
+
+
+    width:400px;
+
+    height:45px;
+
+    background:#f8fafc;
+
+    border:1px solid #e5e7eb;
+
+    border-radius:14px;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+    padding:0 15px;
+
+
+}
+
+
+
+.search-box i{
+
+    color:#9ca3af;
+
+}
+
+
+
+.search-box input{
+
+    border:none;
+
+    outline:none;
+
+    background:none;
+
+    width:100%;
+
+    font-size:14px;
+
+}
+
+
+
+
+
+
+/* ACTIONS */
+
+
+.top-actions{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:25px;
+
+}
+
+
+
+/* NOTIFICATION */
+
+
+.notification{
+
+
+    width:45px;
+
+    height:45px;
+
+    border-radius:50%;
+
+    background:#fff7ed;
+
+    color:#d97706;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    position:relative;
+
+    text-decoration:none;
+
+    font-size:20px;
+
+
+}
+
+
+
+.notification span{
+
+
+    position:absolute;
+
+    top:-5px;
+
+    right:-5px;
+
+
+    background:#ef4444;
+
+    color:white;
+
+
+    width:20px;
+
+    height:20px;
+
+
+    border-radius:50%;
+
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+
+    font-size:11px;
+
+    font-weight:bold;
+
+
+}
+
+
+
+
+
+/* PROFILE */
+
+
+.profile{
+
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+    cursor:pointer;
+
+}
+
+
+
+.avatar{
+
+
+    width:45px;
+
+    height:45px;
+
+    border-radius:50%;
+
+
+    background:linear-gradient(135deg,#f59e0b,#d97706);
+
+
+    color:white;
+
+
+    display:flex;
+
+
+    align-items:center;
+
+
+    justify-content:center;
+
+
+    font-weight:900;
+
+
+    font-size:20px;
+
+
+}
+
+
+
+.profile-info strong{
+
+    display:block;
+
+    color:#1f2937;
+
+    font-size:14px;
+
+}
+
+
+
+.profile-info small{
+
+
+    color:#6b7280;
+
+    font-size:12px;
+
+
+}
+
+
+
+.arrow{
+
+
+    color:#9ca3af;
+
+    font-size:12px;
+
+
+}
+
+
+
+
+
+/* CONTENT */
+
+
+.content{
+
+    padding:30px;
+
+}
+
+
+
+
+/* ===========================
+        MOBILE
+=========================== */
+
+
+@media(max-width:900px){
+
+
+.main{
+
+    margin-left:0;
+
+}
+
+
+
+.menu-toggle{
+
+    display:block;
+
+}
+
+
+
+.search-box{
+
+    display:none;
+
+}
+
+
+
+.topbar{
+
+    padding:0 15px;
+
+}
+
+
+
+.profile-info,
+.arrow{
+
+    display:none;
+
+}
+
+
+
+.content{
+
+    padding:15px;
+
+}
+
+
+}
+.sidebar a{
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.badge{
+    margin-left:auto;
+    background:#ef4444;
+    color:white;
+    font-size:12px;
+    font-weight:800;
+    min-width:22px;
+    height:22px;
+    padding:0 7px;
+    border-radius:50px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 4px 10px rgba(239,68,68,.35);
+}
+
+
+/* animation ti notifikasyon */
+.badge{
+    animation:pulseBadge 2s infinite;
+}
+
+@keyframes pulseBadge{
+
+    0%{
+        transform:scale(1);
+    }
+
+    50%{
+        transform:scale(1.15);
+    }
+
+    100%{
+        transform:scale(1);
+    }
+
+}
 </style>
 
 
@@ -712,111 +1439,95 @@ display:none;
 
 <body>
 
-<!-- SIDEBAR -->
-<div class="sidebar" id="sidebar" style="overflow-y: auto; max-height: 100vh; display: flex; flex-direction: column;">
-    
-    <!-- Pati anwo (Logo ak Lyen yo) -->
-    <div style="flex: 1;">
+
+
+<div class="sidebar" id="sidebar">
+
+    <div class="sidebar-top">
         <div class="logo">
             <i class="fa-solid fa-utensils"></i>
             RESTO KAY-Y
         </div>
 
-        <div class="menu-title">
-            Principal
-        </div>
+        <div class="menu-title">Principal</div>
+        <nav>
+            <a href="/admin/dashboard" class="{{ request()->is('admin/dashboard') ? 'active' : '' }}">
+                <i class="fa-solid fa-chart-line"></i> Dashboard
+            </a>
+        </nav>
 
-        <a href="/admin/dashboard">
-            <i class="fa-solid fa-chart-line"></i>
-            Dashboard
-        </a>
+        <div class="menu-title">Restaurant</div>
+        <nav>
+            <a href="/admin/plats" class="{{ request()->is('admin/plats*') ? 'active' : '' }}">
+                <i class="fa-solid fa-burger"></i> Menu
+            </a>
+            <a href="/admin/categories" class="{{ request()->is('admin/categories*') ? 'active' : '' }}">
+                <i class="fa-solid fa-folder"></i> Catégories
+            </a>
+            <a href="/admin/tables" class="{{ request()->is('admin/tables*') ? 'active' : '' }}">
+                <i class="fa-solid fa-chair"></i> Tables
+            </a>
+<a href="/cuisine" class="{{ request()->is('cuisine*') ? 'active' : '' }}">
 
-        <div class="menu-title">
-            Restaurant
-        </div>
+    <i class="fa-solid fa-fire"></i>
 
-        <a href="/admin/plats">
-            <i class="fa-solid fa-burger"></i>
-            Menu
-        </a>
+    <span>
+        Cuisine
+    </span>
 
-        <a href="/admin/categories">
-            <i class="fa-solid fa-folder"></i>
-            Catégories
-        </a>
-
-        <a href="/admin/tables">
-            <i class="fa-solid fa-chair"></i>
-            Tables
-        </a>
-
-        <a href="/cuisine">
-            <i class="fa-solid fa-fire"></i>
-            Cuisine
-            <span class="badge">
-                5
-            </span>
-        </a>
-
-        <div class="menu-title">
-            Finance
-        </div>
-
-        <a href="/admin/ventes">
-            <i class="fa-solid fa-money-bill"></i>
-            Ventes
-        </a>
-        <a href="/admin/employes">
-    <i class="fa-solid fa-users-gear"></i>
-    Employes
-</a>
-<a href="/admin/stock" class="flex items-center justify-between px-4 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition">
-    <div class="flex items-center gap-3">
-        <i class="fa-solid fa-boxes-stacked text-amber-600"></i>
-        <span>Stocks & Alertes</span>
-    </div>
-    @if(isset($stockAlertsCount) && $stockAlertsCount > 0)
-        <span class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
-            {{ $stockAlertsCount }}
+    @if($commandesCuisine > 0)
+        <span class="badge">
+            {{ $commandesCuisine }}
         </span>
     @endif
+
 </a>
-<a href="/admin/suppliers">
-    <i class="fa-solid fa-truck-field"></i>
-    Fournisseurs
-</a>
-<a href="/admin/notifications" class="relative flex items-center justify-between px-4 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition">
-    <div class="flex items-center gap-3">
-        <i class="fa-solid fa-bell text-amber-600"></i>
-        <span>Notifications & Rappels</span>
-    </div>
-    @if(isset($stockAlertsCount) && $stockAlertsCount > 0)
-        <span class="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-bounce">
-            {{ $stockAlertsCount }}
-        </span>
-    @endif
-</a>
-<a href="/admin/users">
-    <i class="fa-solid fa-users-gear"></i>
-    Utilisateurs &amp; Rôles
-</a>
-<a href="/admin/reports">
-    <i class="fa-solid fa-chart-pie"></i>
-    Rapports &amp; Ventes
-</a>
-<a href="/admin/profile">
-    <i class="fa-solid fa-user-gear"></i>
-    Mon Profil
-</a>
+        </nav>
+
+        <div class="menu-title">Finance</div>
+        <nav>
+            <a href="/admin/ventes" class="{{ request()->is('admin/ventes*') ? 'active' : '' }}">
+                <i class="fa-solid fa-money-bill"></i> Ventes
+            </a>
+            <a href="/admin/employes" class="{{ request()->is('admin/employes*') ? 'active' : '' }}">
+                <i class="fa-solid fa-users-gear"></i> Employés
+            </a>
+            <a href="/admin/stock" class="{{ request()->is('admin/stock*') ? 'active' : '' }}">
+                <i class="fa-solid fa-boxes-stacked"></i> Stocks &amp; Alertes
+                @if(isset($stockAlertsCount) && $stockAlertsCount > 0)
+                    <span class="badge pulse">{{ $stockAlertsCount }}</span>
+                @endif
+            </a>
+            <a href="/admin/suppliers" class="{{ request()->is('admin/suppliers*') ? 'active' : '' }}">
+                <i class="fa-solid fa-truck-field"></i> Fournisseurs
+            </a>
+        </nav>
+
+        <div class="menu-title">Système</div>
+        <nav>
+            <a href="/admin/notifications" class="{{ request()->is('admin/notifications*') ? 'active' : '' }}">
+                <i class="fa-solid fa-bell"></i> Notifications &amp; Rappels
+                @if(isset($stockAlertsCount) && $stockAlertsCount > 0)
+                    <span class="badge pulse">{{ $stockAlertsCount }}</span>
+                @endif
+            </a>
+            <a href="/admin/users" class="{{ request()->is('admin/users*') ? 'active' : '' }}">
+                <i class="fa-solid fa-users-gear"></i> Utilisateurs &amp; Rôles
+            </a>
+            <a href="/admin/reports" class="{{ request()->is('admin/reports*') ? 'active' : '' }}">
+                <i class="fa-solid fa-chart-pie"></i> Rapports &amp; Ventes
+            </a>
+            <a href="/admin/profile" class="{{ request()->is('admin/profile*') ? 'active' : '' }}">
+                <i class="fa-solid fa-user-gear"></i> Mon Profil
+            </a>
+        </nav>
     </div>
 
-    <!-- Bouton Dekonekte Anba Nèt -->
-    <div style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto;">
+    <div class="sidebar-footer">
         <form method="POST" action="{{ route('logout') }}">
             @csrf
-            <button type="submit" style="width: 100%; background: transparent; border: none; color: #ff6b6b; display: flex; align-items: center; gap: 10px; padding: 10px; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 6px; text-align: left;" onmouseover="this.style.background='rgba(255,107,107,0.1)'" onmouseout="this.style.background='transparent'">
-                <i class="fa-solid fa-right-from-bracket"></i>
-                 Déconnexion
+            <button type="submit" class="btn-logout">
+                <i class="fa-solid fa-right-from-bracket"></i> Déconnexion
             </button>
         </form>
     </div>
@@ -824,103 +1535,183 @@ display:none;
 </div>
 
 
-
-
-
 <!-- MAIN -->
 
 <div class="main">
 
 
+    <!-- ==========================
+            TOPBAR
+    =========================== -->
 
-<div class="topbar">
-
-
-<i class="fa-solid fa-bars menu-toggle"
-onclick="toggleMenu()">
-</i>
+    <header class="topbar">
 
 
+        <!-- MENU MOBILE -->
 
-<div class="search-box">
+        <button class="menu-toggle" onclick="toggleMenu()">
+
+            <i class="fa-solid fa-bars"></i>
+
+        </button>
 
 
-<i class="fa fa-search"></i>
 
 
-<input placeholder="Rechercher...">
+        <!-- SEARCH -->
+
+        <div class="search-box">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            <input type="text"
+                   placeholder="Rechercher dans le système...">
+
+        </div>
+
+
+
+
+
+        <!-- ACTIONS -->
+
+        <div class="top-actions">
+
+
+
+            <!-- NOTIFICATION -->
+
+            <a href="/admin/notifications" class="notification">
+
+
+                <i class="fa-solid fa-bell"></i>
+
+
+                @if(isset($notificationCount) && $notificationCount > 0)
+
+                <span>
+                    {{ $notificationCount }}
+                </span>
+
+                @else
+
+                <span>
+                    0
+                </span>
+
+                @endif
+
+
+            </a>
+
+
+
+
+
+
+
+            <!-- PROFILE -->
+
+
+            <div class="profile-dropdown">
+
+
+                <div class="profile">
+
+
+                    <div class="avatar">
+
+
+                        @auth
+
+                        {{ strtoupper(substr(auth()->user()->name,0,1)) }}
+
+                        @else
+
+                        A
+
+                        @endauth
+
+
+                    </div>
+
+
+
+
+
+                    <div class="profile-info">
+
+
+                        @auth
+
+                        <strong>
+                            {{ auth()->user()->name }}
+                        </strong>
+
+
+                        <small>
+                            {{ ucfirst(auth()->user()->role ?? 'Admin') }}
+                        </small>
+
+
+                        @else
+
+
+                        <strong>
+                            Admin
+                        </strong>
+
+
+                        <small>
+                            Restaurant
+                        </small>
+
+
+                        @endauth
+
+
+
+                    </div>
+
+
+                    <i class="fa-solid fa-chevron-down arrow"></i>
+
+
+                </div>
+
+
+
+            </div>
+
+
+
+
+        </div>
+
+
+    </header>
+
+
+
+
+
+
+    <!-- ==========================
+            PAGE CONTENT
+    =========================== -->
+
+
+    <main class="content">
+
+        @yield('content')
+
+    </main>
+
 
 
 </div>
 
 
-
-<div class="top-actions">
-
-
-
-<div class="notification">
-
-
-<i class="fa-solid fa-bell"></i>
-
-<span>
-3
-</span>
-
-</div>
-
-
-
-
-<div class="profile">
-
-
-<div class="avatar">
-
-A
-
-</div>
-
-
-<div>
-
-<strong>
-Admin
-</strong>
-
-<br>
-
-<small>
-Restaurant
-</small>
-
-</div>
-
-
-</div>
-
-
-
-</div>
-
-
-</div>
-
-
-
-
-
-<div class="content">
-
-
-@yield('content')
-
-
-</div>
-
-
-</div>
 
 
 
