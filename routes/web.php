@@ -73,7 +73,12 @@ Route::post('/stock-mouvement', [\App\Http\Controllers\Admin\StockController::cl
     Route::resource('categories', CategoryController::class);
     Route::resource('employes', \App\Http\Controllers\Admin\EmployeController::class);
     Route::resource('suppliers', \App\Http\Controllers\Admin\SupplierController::class);
-    
+    Route::get('/notifications', [\App\Http\Controllers\Admin\NotificationController::class, 'index']);
+    Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
+    Route::get('reports', [\App\Http\Controllers\Admin\ReportController::class, 'index']);
+    Route::get('profile', [\App\Http\Controllers\Admin\ProfileController::class, 'edit']);
+Route::put('profile', [\App\Http\Controllers\Admin\ProfileController::class, 'update']);
+
     Route::delete('/commandes/{id}', function ($id) {
         Commande::destroy($id);
         return back();

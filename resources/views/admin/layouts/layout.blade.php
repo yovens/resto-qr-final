@@ -772,13 +772,44 @@ display:none;
     <i class="fa-solid fa-users-gear"></i>
     Employes
 </a>
-<a href="/admin/stock">
-    <i class="fa-solid fa-boxes-stacked"></i>
-    Stocks & Alertes
+<!-- Lyen Stock ak Badj Wouj -->
+<a href="/admin/stock" class="flex items-center justify-between px-4 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition">
+    <div class="flex items-center gap-3">
+        <i class="fa-solid fa-boxes-stacked text-amber-600"></i>
+        <span>Stocks & Alertes</span>
+    </div>
+    @if(isset($stockAlertsCount) && $stockAlertsCount > 0)
+        <span class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+            {{ $stockAlertsCount }}
+        </span>
+    @endif
 </a>
 <a href="/admin/suppliers">
     <i class="fa-solid fa-truck-field"></i>
     Fournisseurs
+</a>
+<a href="/admin/notifications" class="relative flex items-center justify-between px-4 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition">
+    <div class="flex items-center gap-3">
+        <i class="fa-solid fa-bell text-amber-600"></i>
+        <span>Notifications & Rappels</span>
+    </div>
+    @if(isset($stockAlertsCount) && $stockAlertsCount > 0)
+        <span class="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-bounce">
+            {{ $stockAlertsCount }}
+        </span>
+    @endif
+</a>
+<a href="/admin/users">
+    <i class="fa-solid fa-users-gear"></i>
+    Utilisateurs &amp; Rôles
+</a>
+<a href="/admin/reports">
+    <i class="fa-solid fa-chart-pie"></i>
+    Rapports &amp; Ventes
+</a>
+<a href="/admin/profile">
+    <i class="fa-solid fa-user-gear"></i>
+    Mon Profil
 </a>
     </div>
 
