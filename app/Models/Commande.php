@@ -31,6 +31,15 @@ class Commande extends Model
     {
         return $this->hasOne(Paiement::class);
     }
+
+    public function paiements()
+{
+
+    return $this->hasMany(
+        Paiement::class
+    );
+
+}
 }
 
 

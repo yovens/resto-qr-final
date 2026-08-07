@@ -1,126 +1,1074 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Caisse - Resto Kay-Y</title>
-    <!-- FontAwesome CDN pou ikon yo -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .sidebar { width: 260px; background: #0f172a; color: #fff; height: 100vh; position: fixed; left: 0; top: 0; }
-        .sidebar .logo { padding: 20px; font-size: 1.2rem; font-weight: bold; color: #f59e0b; display: flex; align-items: center; gap: 10px; }
-        .sidebar .menu-title { padding: 15px 20px 5px; font-size: 0.75rem; text-transform: uppercase; color: #64748b; font-weight: bold; }
-        .sidebar a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: #cbd5e1; text-decoration: none; font-size: 0.95rem; transition: all 0.2s; }
-        .sidebar a:hover { background: #1e293b; color: #fff; }
-        .sidebar .badge { background: #ef4444; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-left: auto; }
-        .main { margin-left: 260px; min-height: 100vh; background: #f8fafc; }
-        .topbar { background: #fff; padding: 15px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; }
-        .search-box { display: flex; align-items: center; gap: 10px; background: #f1f5f9; padding: 8px 15px; border-radius: 20px; width: 300px; }
-        .search-box input { background: transparent; border: none; outline: none; width: 100%; font-size: 0.9rem; }
-        .top-actions { display: flex; align-items: center; gap: 20px; }
-        .notification { position: relative; cursor: pointer; }
-        .notification span { position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; padding: 2px 5px; font-size: 0.65rem; }
-        .profile { display: flex; align-items: center; gap: 10px; }
-        .avatar { width: 35px; height: 35px; border-radius: 50%; background: #10b981; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-    </style>
-</head>
-<body>
+@extends('caisse.layouts.app')
 
-    <!-- SIDEBAR CAISSIÈRE -->
-    <div class="sidebar" id="sidebar" style="overflow-y: auto; max-height: 100vh; display: flex; flex-direction: column;">
-        <div style="flex: 1;">
-            <div class="logo">
-                <i class="fa-solid fa-cash-register"></i> RESTO KAY-Y
-            </div>
+@section('title','Tableau de bord')
 
-            <div class="menu-title">Principal</div>
-            <a href="/caisse/dashboard">
-                <i class="fa-solid fa-chart-line"></i> Dashboard Caisse
-            </a>
+@section('content')
 
-            <div class="menu-title">Opèrasyon</div>
-            <a href="/cuisine">
-                <i class="fa-solid fa-fire"></i> Ekran Kwizin
-                <span class="badge">5</span>
-            </a>
+<div class="dashboard">
 
-            <a href="/menu/1" target="_blank">
-                <i class="fa-solid fa-utensils"></i> Gade Meni (Kliyan)
-            </a>
+    <div class="welcome-card">
+
+        <div>
+
+            <h2>
+
+                Bonjour {{ auth()->user()->name }}
+
+            </h2>
+
+            <p>
+
+                Bienvenue dans votre espace de caisse.
+
+                Consultez les commandes prêtes et encaissez les paiements.
+
+            </p>
+
         </div>
 
-        <!-- Bouton Dekonekte -->
-        <div style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto;">
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" style="width: 100%; background: transparent; border: none; color: #ff6b6b; display: flex; align-items: center; gap: 10px; padding: 10px; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 6px; text-align: left;" onmouseover="this.style.background='rgba(255,107,107,0.1)'" onmouseout="this.style.background='transparent'">
-                    <i class="fa-solid fa-right-from-bracket"></i> Déconnexion
-                </button>
-            </form>
+        <div class="welcome-icon">
+
+            <i class="fa-solid fa-cash-register"></i>
+
         </div>
+
     </div>
 
-    <!-- MAIN -->
-    <div class="main">
-        <div class="topbar">
-            <i class="fa-solid fa-bars menu-toggle" onclick="toggleMenu()"></i>
+    <div class="stats-grid">
 
-            <div class="search-box">
-                <i class="fa fa-search text-gray-400"></i>
-                <input placeholder="Rechercher yon kòmand...">
+        <div class="stat-card revenue">
+
+            <div class="icon">
+
+                <i class="fa-solid fa-sack-dollar"></i>
+
             </div>
 
-            <div class="top-actions">
-                <div class="notification">
-                    <i class="fa-solid fa-bell text-gray-600"></i>
-                    <span>2</span>
+            <div>
+
+                <span>Chiffre d'affaires</span>
+
+                <h2 id="caCounter">
+
+                    {{ number_format($chiffreAffairesJour,2) }}
+
+                </h2>
+
+                <small>Aujourd'hui</small>
+
+            </div>
+
+        </div>
+
+        <div class="stat-card orders">
+
+            <div class="icon">
+
+                <i class="fa-solid fa-bell-concierge"></i>
+
+            </div>
+
+            <div>
+
+                <span>Commandes prêtes</span>
+
+                <h2 id="readyCounter">
+
+                    {{ $countPretes }}
+
+                </h2>
+
+                <small>À encaisser</small>
+
+            </div>
+
+        </div>
+
+        <div class="stat-card attente">
+
+            <div class="icon">
+
+                <i class="fa-solid fa-clock"></i>
+
+            </div>
+
+            <div>
+
+                <span>En attente</span>
+
+                <h2>
+
+                    {{ $countEnAttente }}
+
+                </h2>
+
+                <small>Cuisine</small>
+
+            </div>
+
+        </div>
+
+        <div class="stat-card paiement">
+
+            <div class="icon">
+
+                <i class="fa-solid fa-credit-card"></i>
+
+            </div>
+
+            <div>
+
+                <span>Paiements</span>
+
+                <h2>
+
+                    {{ $countPayeesJour }}
+
+                </h2>
+
+                <small>Aujourd'hui</small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+        <div class="analytics-grid">
+
+        <div class="chart-card">
+
+            <div class="card-header">
+
+                <h3>
+
+                    <i class="fa-solid fa-chart-line"></i>
+
+                    Évolution du chiffre d'affaires
+
+                </h3>
+
+            </div>
+
+            <canvas id="salesChart" height="120"></canvas>
+
+        </div>
+
+        <div class="mini-stats">
+
+            <div class="mini-card success">
+
+                <div>
+
+                    <small>Espèces</small>
+
+                    <h2>62%</h2>
+
                 </div>
 
-                <div class="profile">
-                    <div class="avatar">C</div>
-                    <div>
-                        <strong>{{ auth()->user()->name ?? 'Caissière' }}</strong><br>
-                        <small class="text-gray-500">Resto Kay-Y</small>
+                <i class="fa-solid fa-money-bill-wave"></i>
+
+            </div>
+
+            <div class="mini-card primary">
+
+                <div>
+
+                    <small>Carte bancaire</small>
+
+                    <h2>24%</h2>
+
+                </div>
+
+                <i class="fa-solid fa-credit-card"></i>
+
+            </div>
+
+            <div class="mini-card warning">
+
+                <div>
+
+                    <small>MonCash</small>
+
+                    <h2>9%</h2>
+
+                </div>
+
+                <i class="fa-solid fa-mobile-screen-button"></i>
+
+            </div>
+
+            <div class="mini-card purple">
+
+                <div>
+
+                    <small>NatCash</small>
+
+                    <h2>5%</h2>
+
+                </div>
+
+                <i class="fa-solid fa-wallet"></i>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="analytics-grid two">
+
+        <div class="chart-card">
+
+            <div class="card-header">
+
+                <h3>
+
+                    <i class="fa-solid fa-chart-pie"></i>
+
+                    Répartition des paiements
+
+                </h3>
+
+            </div>
+
+            <canvas id="paymentChart" height="180"></canvas>
+
+        </div>
+
+        <div class="chart-card">
+
+            <div class="card-header">
+
+                <h3>
+
+                    <i class="fa-solid fa-chart-column"></i>
+
+                    Commandes encaissées
+
+                </h3>
+
+            </div>
+
+            <canvas id="ordersChart" height="180"></canvas>
+
+        </div>
+
+    </div>
+        <div class="table-card">
+
+        <div class="card-header">
+
+            <div>
+
+                <h3>
+
+                    <i class="fa-solid fa-receipt"></i>
+
+                    Commandes prêtes à encaisser
+
+                </h3>
+
+                <small>
+
+                    Toutes les commandes terminées par la cuisine.
+
+                </small>
+
+            </div>
+
+            <span class="count-badge">
+
+                {{ $countPretes }}
+
+                commande(s)
+
+            </span>
+
+        </div>
+
+        <div class="table-responsive">
+
+            <table class="premium-table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>#</th>
+
+                        <th>Table</th>
+
+                        <th>Montant</th>
+
+                        <th>Statut</th>
+
+                        <th>Heure</th>
+
+                        <th>Mode</th>
+
+                        <th>Action</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                @forelse($commandesPretes as $commande)
+
+                    <tr>
+
+                        <td>
+
+                            <strong>
+
+                                #{{ $commande->id }}
+
+                            </strong>
+
+                        </td>
+
+                        <td>
+
+                            <span class="table-number">
+
+                                🍽️ Table
+
+                                {{ $commande->restaurant_table_id }}
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <strong class="amount">
+
+                                {{ number_format($commande->total,2) }}
+
+                                HTG
+
+                            </strong>
+
+                        </td>
+
+                        <td>
+
+                            <span class="badge-ready">
+
+                                <i class="fa-solid fa-circle-check"></i>
+
+                                Prête
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            {{ \Carbon\Carbon::parse($commande->created_at)->format('H:i') }}
+
+                        </td>
+
+                        <td>
+
+                            <span class="badge-mode">
+
+                                À définir
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <a
+
+                                href="{{ url('/caisse/encaisser/'.$commande->id) }}"
+
+                                class="btn-pay">
+
+                                <i class="fa-solid fa-cash-register"></i>
+
+                                Encaisser
+
+                            </a>
+
+                        </td>
+
+                    </tr>
+
+                @empty
+
+                    <tr>
+
+                        <td
+
+                            colspan="7"
+
+                            class="empty">
+
+                            <i
+
+                                class="fa-solid fa-circle-check"
+
+                                style="font-size:50px;color:#22c55e;margin-bottom:15px;display:block;">
+
+                            </i>
+
+                            Aucune commande en attente d'encaissement.
+
+                        </td>
+
+                    </tr>
+
+                @endforelse
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+        <div class="analytics-grid two-columns">
+
+        <!-- Derniers paiements -->
+
+        <div class="table-card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h3>
+
+                        <i class="fa-solid fa-credit-card"></i>
+
+                        Derniers paiements
+
+                    </h3>
+
+                    <small>
+
+                        Historique des paiements enregistrés aujourd'hui.
+
+                    </small>
+
+                </div>
+
+            </div>
+
+            <div class="table-responsive">
+
+                <table class="premium-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Facture</th>
+
+                            <th>Commande</th>
+
+                            <th>Montant</th>
+
+                            <th>Mode</th>
+
+                            <th>Date</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                    @forelse($derniersPaiements as $paiement)
+
+                        <tr>
+
+                            <td>
+
+                                <strong>
+
+                                    FAC-{{ str_pad($paiement->id,5,'0',STR_PAD_LEFT) }}
+
+                                </strong>
+
+                            </td>
+
+                            <td>
+
+                                #{{ $paiement->commande_id }}
+
+                            </td>
+
+                            <td>
+
+                                <strong class="amount">
+
+                                    {{ number_format($paiement->montant,2) }}
+
+                                    HTG
+
+                                </strong>
+
+                            </td>
+
+                            <td>
+
+                                @switch($paiement->mode_paiement)
+
+                                    @case('Espèces')
+
+                                    <span class="badge badge-success">
+
+                                        💵 Espèces
+
+                                    </span>
+
+                                    @break
+
+                                    @case('Carte')
+
+                                    <span class="badge badge-primary">
+
+                                        💳 Carte
+
+                                    </span>
+
+                                    @break
+
+                                    @case('MonCash')
+
+                                    <span class="badge badge-warning">
+
+                                        📱 MonCash
+
+                                    </span>
+
+                                    @break
+
+                                    @case('NatCash')
+
+                                    <span class="badge badge-purple">
+
+                                        👛 NatCash
+
+                                    </span>
+
+                                    @break
+
+                                    @default
+
+                                    <span class="badge">
+
+                                        {{ $paiement->mode_paiement }}
+
+                                    </span>
+
+                                @endswitch
+
+                            </td>
+
+                            <td>
+
+                                {{ \Carbon\Carbon::parse($paiement->created_at)->format('d/m/Y H:i') }}
+
+                            </td>
+
+                        </tr>
+
+                    @empty
+
+                        <tr>
+
+                            <td
+
+                                colspan="5"
+
+                                class="empty">
+
+                                Aucun paiement enregistré.
+
+                            </td>
+
+                        </tr>
+
+                    @endforelse
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+        <!-- Résumé des moyens de paiement -->
+
+        <div class="table-card">
+
+            <div class="card-header">
+
+                <h3>
+
+                    <i class="fa-solid fa-wallet"></i>
+
+                    Répartition des paiements
+
+                </h3>
+
+            </div>
+
+            <div class="payment-summary">
+
+                <div class="payment-item">
+
+                    <div class="left">
+
+                        💵 Espèces
+
                     </div>
+
+                    <strong>
+
+                        {{ $cashCount ?? 0 }}
+
+                    </strong>
+
                 </div>
+
+                <div class="payment-item">
+
+                    <div class="left">
+
+                        💳 Carte bancaire
+
+                    </div>
+
+                    <strong>
+
+                        {{ $cardCount ?? 0 }}
+
+                    </strong>
+
+                </div>
+
+                <div class="payment-item">
+
+                    <div class="left">
+
+                        📱 MonCash
+
+                    </div>
+
+                    <strong>
+
+                        {{ $moncashCount ?? 0 }}
+
+                    </strong>
+
+                </div>
+
+                <div class="payment-item">
+
+                    <div class="left">
+
+                        👛 NatCash
+
+                    </div>
+
+                    <strong>
+
+                        {{ $natcashCount ?? 0 }}
+
+                    </strong>
+
+                </div>
+
+                <div class="payment-item">
+
+                    <div class="left">
+
+                        🏦 Virement
+
+                    </div>
+
+                    <strong>
+
+                        {{ $virementCount ?? 0 }}
+
+                    </strong>
+
+                </div>
+
             </div>
+
         </div>
 
-        <!-- CONTENT -->
-        <div class="p-8">
-            <h1 class="text-2xl font-bold text-gray-800 mb-6">Espace Caisse & Encaissement</h1>
+    </div>
+        <!-- Footer caisse -->
 
-            <!-- Cards Rezime -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-emerald-500">
-                    <p class="text-sm font-semibold text-gray-500">Vant Jodia (Caisse)</p>
-                    <h3 class="text-2xl font-bold text-gray-800 mt-2">0.00 HTG</h3>
-                </div>
+    <div class="caisse-footer">
 
-                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-amber-500">
-                    <p class="text-sm font-semibold text-gray-500">Kòmand ki Peye</p>
-                    <h3 class="text-2xl font-bold text-gray-800 mt-2">0</h3>
-                </div>
+        <div>
 
-                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
-                    <p class="text-sm font-semibold text-gray-500">Kòmand an Attente</p>
-                    <h3 class="text-2xl font-bold text-gray-800 mt-2">0</h3>
-                </div>
-            </div>
+            <i class="fa-solid fa-shield-halved"></i>
 
-            <div class="bg-white p-6 rounded-xl shadow-sm">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Aksyon Rapid</h2>
-                <div class="flex gap-4">
-                    <a href="/cuisine" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg font-medium shadow inline-flex items-center gap-2">
-                        <i class="fa-solid fa-fire"></i> Swiv Kòmand nan Kwizin
-                    </a>
-                </div>
-            </div>
+            Système de caisse sécurisé
+
         </div>
+
+
+        <div>
+
+            <i class="fa-solid fa-clock"></i>
+
+            Mise à jour automatique
+
+        </div>
+
+
+        <div>
+
+            Version Resto Kay-Y v1.0
+
+        </div>
+
     </div>
 
-</body>
-</html>
+
+
+    <!-- Notifications Toast -->
+
+    <div id="toastContainer"></div>
+
+
+
+@endsection
+
+
+
+@push('scripts')
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+
+<script>
+
+
+// Evolution chiffre d'affaires
+
+const salesCtx = document.getElementById('salesChart');
+
+
+if(salesCtx){
+
+
+    new Chart(salesCtx, {
+
+
+        type:'line',
+
+
+        data:{
+
+
+            labels:@json($salesLabels ?? []),
+
+
+            datasets:[{
+
+
+                label:'Chiffre d’affaires',
+
+
+                data:@json($salesData ?? []),
+
+
+                tension:.4,
+
+
+                fill:true
+
+
+            }]
+
+
+        },
+
+
+        options:{
+
+
+            responsive:true,
+
+
+            plugins:{
+
+
+                legend:{
+
+
+                    display:false
+
+                }
+
+
+            }
+
+
+        }
+
+
+    });
+
+
+}
+
+
+
+
+// Répartition paiement
+
+
+const paymentCtx = document.getElementById('paymentChart');
+
+
+if(paymentCtx){
+
+
+    new Chart(paymentCtx,{
+
+
+        type:'doughnut',
+
+
+        data:{
+
+
+            labels:[
+
+                'Espèces',
+
+                'Carte',
+
+                'MonCash',
+
+                'NatCash'
+
+            ],
+
+
+            datasets:[{
+
+
+                data:[
+
+                    {{ $cashPercent ?? 62 }},
+
+                    {{ $cardPercent ?? 24 }},
+
+                    {{ $moncashPercent ?? 9 }},
+
+                    {{ $natcashPercent ?? 5 }}
+
+                ]
+
+
+            }]
+
+
+        },
+
+
+        options:{
+
+
+            responsive:true,
+
+
+            plugins:{
+
+
+                legend:{
+
+
+                    position:'bottom'
+
+
+                }
+
+
+            }
+
+
+        }
+
+
+    });
+
+
+}
+
+
+
+
+// Commandes encaissées
+
+
+const ordersCtx = document.getElementById('ordersChart');
+
+
+if(ordersCtx){
+
+
+    new Chart(ordersCtx,{
+
+
+        type:'bar',
+
+
+        data:{
+
+
+            labels:@json($orderLabels ?? []),
+
+
+            datasets:[{
+
+
+                label:'Commandes',
+
+
+                data:@json($orderData ?? [])
+
+
+            }]
+
+
+        },
+
+
+        options:{
+
+
+            responsive:true,
+
+
+            plugins:{
+
+
+                legend:{
+
+
+                    display:false
+
+
+                }
+
+
+            }
+
+
+        }
+
+
+    });
+
+
+}
+
+
+
+
+
+// Toast notification
+
+
+function showToast(message,type='success'){
+
+
+
+    let toast=document.createElement('div');
+
+
+    toast.className="toast "+type;
+
+
+    toast.innerHTML=`
+
+
+        <i class="fa-solid fa-bell"></i>
+
+        ${message}
+
+
+    `;
+
+
+
+    document
+
+    .getElementById('toastContainer')
+
+    .appendChild(toast);
+
+
+
+
+    setTimeout(()=>{
+
+
+        toast.remove();
+
+
+    },4000);
+
+
+
+}
+
+
+
+
+@if(session('success'))
+
+showToast("{{ session('success') }}");
+
+
+@endif
+
+
+
+@if(session('error'))
+
+showToast("{{ session('error') }}",'error');
+
+
+@endif
+
+
+
+
+// Rafraîchissement automatique toutes les 30 secondes
+
+
+setInterval(()=>{
+
+
+    console.log("Actualisation caisse...");
+
+
+},30000);
+
+
+
+</script>
+
+
+@endpush

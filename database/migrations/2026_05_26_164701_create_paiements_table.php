@@ -4,43 +4,102 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
+
+
     public function up(): void
     {
-       Schema::create('paiements', function (Blueprint $table) {
-    $table->id();
 
-    $table->foreignId('commande_id')
-        ->constrained('commandes')
-        ->onDelete('cascade');
+        Schema::create('paiements', function (Blueprint $table) {
 
-    $table->decimal('montant', 10, 2);
 
-    $table->enum('methode', [
-        'cash',
-        'carte',
-        'mobile_money'
-    ])->default('cash');
+            $table->id();
 
-    $table->enum('statut', [
-        'en_attente',
-        'complete',
-        'echoue'
-    ])->default('en_attente');
 
-    $table->timestamps();
-});
+            /*
+            Relation commande
+            */
+
+            $table->foreignId('commande_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+
+
+            /*
+            Montant payé
+            */
+
+            $table->decimal(
+                'montant',
+                10,
+                2
+            );
+
+
+
+            /*
+            Mode paiement
+            */
+
+            $table->enum(
+                'mode_paiement',
+                [
+
+                    'Espèces',
+
+                    'Carte',
+
+                    'MonCash',
+
+                    'NatCash',
+
+                    'Virement'
+
+                ]
+            );
+
+
+
+            /*
+            Caissier connecté
+            */
+
+            $table->string(
+                'caissier'
+            )
+            ->nullable();
+
+
+
+            /*
+            Numéro facture
+            */
+
+            $table->string(
+                'numero_facture'
+            )
+            ->nullable();
+
+
+
+            $table->timestamps();
+
+
+        });
+
     }
 
-    /**
-     * Reverse the migrations.
-     */
+
+
+
     public function down(): void
     {
+
         Schema::dropIfExists('paiements');
+
     }
+
 };
