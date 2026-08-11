@@ -1,3 +1,4 @@
+
 @extends('caisse.layouts.app')
 
 @section('title', 'Commandes')
@@ -6,22 +7,19 @@
 
 <div class="table-card">
 
-```
-{{-- HEADER --}}
-<div class="card-header">
+    {{-- HEADER --}}
+    <div class="card-header">
 
-    <div>
-        <h3>
-            <i class="fa-solid fa-receipt"></i>
-            Toutes les commandes
-        </h3>
+        <div>
+            <h3>
+                <i class="fa-solid fa-receipt"></i>
+                Commandes
+            </h3>
 
-        <small>
-            Suivi des commandes et accès rapide à l'encaissement.
-        </small>
-    </div>
-
-    <div style="display:flex; gap:10px; align-items:center;">
+            <small>
+                Suivi des commandes et accès à l'encaissement.
+            </small>
+        </div>
 
         <span class="count-badge">
             {{ $commandes->count() }} commande(s)
@@ -29,316 +27,226 @@
 
     </div>
 
-</div>
 
+    {{-- TABLE --}}
+    <div class="table-responsive">
 
-{{-- TABLE --}}
-<div class="table-responsive">
+        <table class="premium-table">
 
-    <table class="premium-table">
-
-        <thead>
-
-            <tr>
-                <th>#</th>
-                <th>Table</th>
-                <th>Total</th>
-                <th>Statut</th>
-                <th>Date</th>
-                <th>Action</th>
-            </tr>
-
-        </thead>
-
-
-        <tbody>
-
-            @forelse($commandes as $commande)
+            <thead>
 
                 <tr>
+                    <th>#</th>
+                    <th>Table</th>
+                    <th>Total</th>
+                    <th>Statut</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
 
-                    {{-- ID --}}
-                    <td>
-
-                        <strong>
-                            #{{ $commande->id }}
-                        </strong>
-
-                    </td>
-
-
-                    {{-- TABLE --}}
-                    <td>
-
-                        <span class="table-number">
-
-                            🍽️ Table
-                            {{ $commande->restaurant_table_id }}
-
-                        </span>
-
-                    </td>
+            </thead>
 
 
-                    {{-- TOTAL --}}
-                    <td>
+            <tbody>
 
-                        <strong class="amount">
+                @forelse($commandes as $commande)
 
-                            {{ number_format(
-                                $commande->total,
-                                2
-                            ) }}
+                    <tr>
 
-                            HTG
-
-                        </strong>
-
-                    </td>
+                        {{-- ID --}}
+                        <td>
+                            <strong>
+                                #{{ $commande->id }}
+                            </strong>
+                        </td>
 
 
-                    {{-- STATUT --}}
-                    <td>
+                        {{-- TABLE --}}
+                        <td>
 
-                        @if($commande->statut === 'prete')
-
-                            <span class="badge-ready">
-
-                                <i class="fa-solid fa-circle-check"></i>
-
-                                Prête à encaisser
-
+                            <span class="table-number">
+                                🍽️ Table
+                                {{ $commande->restaurant_table_id }}
                             </span>
 
-
-                        @elseif($commande->statut === 'nouvelle')
-
-                            <span class="badge badge-info">
-
-                                <i class="fa-solid fa-bell"></i>
-
-                                Nouvelle
-
-                            </span>
+                        </td>
 
 
-                        @elseif($commande->statut === 'en_preparation')
+                        {{-- TOTAL --}}
+                        <td>
 
-                            <span class="badge badge-warning">
+                            <strong class="amount">
 
-                                <i class="fa-solid fa-fire-burner"></i>
-
-                                En préparation
-
-                            </span>
-
-
-                        @elseif($commande->statut === 'preparation')
-
-                            <span class="badge badge-warning">
-
-                                <i class="fa-solid fa-kitchen-set"></i>
-
-                                En cuisine
-
-                            </span>
-
-
-                        @elseif($commande->statut === 'payee')
-
-                            <span class="badge badge-success">
-
-                                <i class="fa-solid fa-circle-check"></i>
-
-                                Payée
-
-                            </span>
-
-
-                        @else
-
-                            <span class="badge">
-
-                                {{ ucfirst(
-                                    str_replace(
-                                        '_',
-                                        ' ',
-                                        $commande->statut
-                                    )
+                                {{ number_format(
+                                    $commande->total,
+                                    2
                                 ) }}
 
-                            </span>
+                                HTG
 
-                        @endif
+                            </strong>
 
-                    </td>
-
-
-                    {{-- DATE --}}
-                    <td>
-
-                        {{ $commande->created_at->format(
-                            'd/m/Y H:i'
-                        ) }}
-
-                    </td>
+                        </td>
 
 
-                    {{-- ACTION --}}
-                    <td>
+                        {{-- STATUT --}}
+                        <td>
 
-                        @if($commande->statut === 'prete')
+                            @if($commande->statut === 'prete')
 
-                            {{-- ENCAISSER --}}
+                                <span class="badge-ready">
 
-                            <a
-                                href="{{ route(
-                                    'caisse.encaisser',
-                                    $commande->id
-                                ) }}"
-                                class="btn-pay"
-                            >
+                                    <i class="fa-solid fa-circle-check"></i>
 
-                                <i class="fa-solid fa-cash-register"></i>
+                                    Prête à encaisser
 
-                                Encaisser
-
-                            </a>
+                                </span>
 
 
-                        @elseif($commande->statut === 'payee')
+                            @elseif($commande->statut === 'nouvelle')
 
-                            {{-- FACTURE --}}
+                                <span class="badge badge-info">
 
-                            @php
+                                    <i class="fa-solid fa-bell"></i>
 
-                                $paiement = $commande->paiements
-                                    ->sortByDesc('created_at')
-                                    ->first();
+                                    Nouvelle
 
-                            @endphp
+                                </span>
 
 
-                            @if($paiement)
+                            @elseif($commande->statut === 'en_preparation')
 
-                                <a
-                                    href="{{ route(
-                                        'caisse.facture',
-                                        $paiement->id
-                                    ) }}"
-                                    class="btn-pay"
-                                    style="background:#4a7c59;"
-                                >
+                                <span class="badge badge-warning">
 
-                                    <i class="fa-solid fa-file-invoice"></i>
+                                    <i class="fa-solid fa-fire-burner"></i>
 
-                                    Voir facture
+                                    En préparation
 
-                                </a>
+                                </span>
+
+
+                            @elseif($commande->statut === 'preparation')
+
+                                <span class="badge badge-warning">
+
+                                    <i class="fa-solid fa-kitchen-set"></i>
+
+                                    En cuisine
+
+                                </span>
+
 
                             @else
 
-                                <span class="badge badge-success">
+                                <span class="badge">
 
-                                    <i class="fa-solid fa-check"></i>
-
-                                    Payée
+                                    {{ ucfirst(
+                                        str_replace(
+                                            '_',
+                                            ' ',
+                                            $commande->statut
+                                        )
+                                    ) }}
 
                                 </span>
 
                             @endif
 
+                        </td>
 
-                        @else
 
-                            <span
+                        {{-- DATE --}}
+                        <td>
+
+                            {{ $commande->created_at->format(
+                                'd/m/Y H:i'
+                            ) }}
+
+                        </td>
+
+
+                        {{-- ACTION --}}
+                        <td>
+
+                            @if($commande->statut === 'prete')
+
+                                <a
+                                    href="{{ route(
+                                        'caisse.encaisser',
+                                        $commande->id
+                                    ) }}"
+                                    class="btn-pay"
+                                >
+
+                                    <i class="fa-solid fa-cash-register"></i>
+
+                                    Encaisser
+
+                                </a>
+
+                            @elseif(
+                                $commande->statut === 'nouvelle'
+                                ||
+                                $commande->statut === 'en_preparation'
+                                ||
+                                $commande->statut === 'preparation'
+                            )
+
+                                <span
+                                    style="
+                                        color:#94a3b8;
+                                        font-size:14px;
+                                    "
+                                >
+                                    En attente
+                                </span>
+
+                            @endif
+
+                        </td>
+
+                    </tr>
+
+                @empty
+
+                    <tr>
+
+                        <td
+                            colspan="6"
+                            class="empty"
+                        >
+
+                            <i
+                                class="fa-solid fa-receipt"
                                 style="
-                                    color:#94a3b8;
-                                    font-size:18px;
+                                    font-size:45px;
+                                    display:block;
+                                    margin-bottom:15px;
                                 "
-                            >
-                                —
+                            ></i>
 
-                            </span>
+                            <strong>
+                                Aucune commande en cours.
+                            </strong>
 
-                        @endif
+                            <br>
 
-                    </td>
+                            <small>
+                                Les nouvelles commandes apparaîtront ici.
+                            </small>
 
-                </tr>
+                        </td>
 
+                    </tr>
 
-            @empty
+                @endforelse
 
-                <tr>
+            </tbody>
 
-                    <td
-                        colspan="6"
-                        class="empty"
-                    >
+        </table>
 
-                        <i
-                            class="fa-solid fa-receipt"
-                            style="
-                                font-size:45px;
-                                display:block;
-                                margin-bottom:15px;
-                            "
-                        ></i>
-
-                        <strong>
-                            Aucune commande trouvée.
-                        </strong>
-
-                        <br>
-
-                        <small>
-                            Les commandes apparaîtront ici.
-                        </small>
-
-                    </td>
-
-                </tr>
-
-            @endforelse
-
-        </tbody>
-
-    </table>
+    </div>
 
 </div>
-```
-
-</div>
-
-{{-- STYLE LOCAL --}}
-
-<style>
-
-.badge-info {
-    background: #dbeafe;
-    color: #2563eb;
-}
-
-.btn-pay {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 9px 14px;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.table-number {
-    font-weight: 600;
-}
-
-.amount {
-    white-space: nowrap;
-}
-
-</style>
 
 @endsection

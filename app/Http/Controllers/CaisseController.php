@@ -415,11 +415,16 @@ class CaisseController extends Controller
         );
     }
 
-    public function commandes()
+public function commandes()
 {
-    $commandes = Commande::with('items.plat', 'table')
-        ->orderBy('created_at', 'desc')
-        ->get();
+    $commandes = Commande::whereIn('statut', [
+        'nouvelle',
+        'en_preparation',
+        'preparation',
+        'prete',
+    ])
+    ->orderBy('created_at', 'desc')
+    ->get();
 
     return view('caisse.commandes', compact('commandes'));
 }

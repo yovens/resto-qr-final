@@ -6,7 +6,7 @@
 
 <div class="table-card">
 
-```
+
 <div class="card-header">
 
     <div>
