@@ -8,129 +8,91 @@ use App\Models\Paiement;
 use App\Models\Plat;
 use Carbon\Carbon;
 
-
 class CaisseController extends Controller
 {
-
+    /**
+     * Dashboard de la caisse
+     */
     public function index()
     {
-
-
         /*
         |--------------------------------------------------------------------------
-        | Commandes prêtes à encaisser
+        | COMMANDES PRÊTES À ENCAISSER
         |--------------------------------------------------------------------------
+        |
+        | KitchenController met :
+        |
+        | statut = "prete"
+        |
+        | Donc la caisse doit chercher exactement "prete".
+        |
         */
 
-
-        $commandesPretes = Commande::where('statut', 'terminee')
+        $commandesPretes = Commande::where('statut', 'prete')
             ->orderBy('created_at', 'desc')
             ->get();
-
-
 
         $countPretes = $commandesPretes->count();
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | COMMANDES EN ATTENTE / CUISINE
+        |--------------------------------------------------------------------------
+        */
 
-
-
+        $countEnAttente = Commande::whereIn('statut', [
+            'nouvelle',
+            'en_preparation',
+            'preparation'
+        ])->count();
 
 
         /*
         |--------------------------------------------------------------------------
-        | Commandes en cuisine / attente
+        | PAIEMENTS DU JOUR
         |--------------------------------------------------------------------------
         */
-
-
-        $countEnAttente = Commande::whereIn(
-            'statut',
-            [
-                'nouvelle',
-                'en_preparation',
-                'preparation'
-            ]
-        )->count();
-
-
-
-
-
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Commandes payées aujourd'hui
-        |--------------------------------------------------------------------------
-        */
-
 
         $countPayeesJour = Paiement::whereDate(
             'created_at',
             Carbon::today()
-        )
-        ->count();
-
-
-
-        $paidOrders = $countPayeesJour;
-
-
-
-
-
+        )->count();
 
 
         /*
         |--------------------------------------------------------------------------
-        | Chiffre affaires jour
+        | CHIFFRE D'AFFAIRES DU JOUR
         |--------------------------------------------------------------------------
         */
-
 
         $chiffreAffairesJour = Paiement::whereDate(
             'created_at',
             Carbon::today()
-        )
-        ->sum('montant');
+        )->sum('montant');
 
 
+        $paidOrders = $countPayeesJour;
 
         $todaySales = $chiffreAffairesJour;
 
 
-
-
-
-
-
         /*
         |--------------------------------------------------------------------------
-        | Ticket moyen
+        | TICKET MOYEN
         |--------------------------------------------------------------------------
         */
 
-
         $averageTicket = $countPayeesJour > 0
-
             ? $chiffreAffairesJour / $countPayeesJour
-
             : 0;
 
 
-
-
-
-
-
-
         /*
         |--------------------------------------------------------------------------
-        | Derniers paiements
+        | DERNIERS PAIEMENTS
         |--------------------------------------------------------------------------
         */
-
 
         $derniersPaiements = Paiement::orderBy(
             'created_at',
@@ -140,25 +102,19 @@ class CaisseController extends Controller
         ->get();
 
 
-
-
-
-
-
-
-
         /*
         |--------------------------------------------------------------------------
-        | Répartition paiements
+        | RÉPARTITION DES PAIEMENTS
         |--------------------------------------------------------------------------
+        |
+        | Ces données viennent directement de la table "paiements".
+        |
         */
-
 
         $cashCount = Paiement::where(
             'mode_paiement',
             'Espèces'
         )->count();
-
 
 
         $cardCount = Paiement::where(
@@ -167,12 +123,10 @@ class CaisseController extends Controller
         )->count();
 
 
-
         $moncashCount = Paiement::where(
             'mode_paiement',
             'MonCash'
         )->count();
-
 
 
         $natcashCount = Paiement::where(
@@ -181,24 +135,17 @@ class CaisseController extends Controller
         )->count();
 
 
-
         $virementCount = Paiement::where(
             'mode_paiement',
             'Virement'
         )->count();
 
 
-
-
-
-
-
         /*
         |--------------------------------------------------------------------------
-        | Meilleures ventes
+        | MEILLEURES VENTES
         |--------------------------------------------------------------------------
         */
-
 
         $bestSelling = Plat::orderBy(
             'total_vendu',
@@ -208,66 +155,83 @@ class CaisseController extends Controller
         ->get();
 
 
-
-
-
-
-
-
-
         /*
         |--------------------------------------------------------------------------
-        | Graphique chiffre affaires
+        | GRAPHIQUE CHIFFRE D'AFFAIRES
         |--------------------------------------------------------------------------
+        |
+        | CA par jour pour le mois actuel.
+        |
         */
 
-
         $sales = Paiement::select(
-
-            DB::raw(
-                'DATE(created_at) as date'
-            ),
-
-            DB::raw(
-                'SUM(montant) as total'
-            )
-
+            DB::raw('DATE(created_at) as date'),
+            DB::raw('SUM(montant) as total')
         )
-
         ->whereMonth(
             'created_at',
             Carbon::now()->month
         )
-
+        ->whereYear(
+            'created_at',
+            Carbon::now()->year
+        )
         ->groupBy('date')
-
         ->orderBy('date')
-
         ->get();
 
 
+        $salesLabels = $sales
+            ->pluck('date')
+            ->values();
 
 
-
-        $salesLabels = $sales->pluck('date');
-
-
-        $salesData = $sales->pluck('total');
-
-
-
-
-
-
-
+        $salesData = $sales
+            ->pluck('total')
+            ->values();
 
 
         /*
         |--------------------------------------------------------------------------
-        | Activités récentes caisse
+        | GRAPHIQUE COMMANDES ENCAISSÉES
         |--------------------------------------------------------------------------
+        |
+        | Nombre de paiements par jour.
+        |
         */
 
+        $orders = Paiement::select(
+            DB::raw('DATE(created_at) as date'),
+            DB::raw('COUNT(*) as total')
+        )
+        ->whereMonth(
+            'created_at',
+            Carbon::now()->month
+        )
+        ->whereYear(
+            'created_at',
+            Carbon::now()->year
+        )
+        ->groupBy('date')
+        ->orderBy('date')
+        ->get();
+
+
+        $orderLabels = $orders
+            ->pluck('date')
+            ->values();
+
+
+        $orderData = $orders
+            ->pluck('total')
+            ->values();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ACTIVITÉS RÉCENTES
+        |--------------------------------------------------------------------------
+        */
 
         $activities = Paiement::orderBy(
             'created_at',
@@ -275,84 +239,93 @@ class CaisseController extends Controller
         )
         ->limit(5)
         ->get()
-        ->map(function($paiement){
+        ->map(function ($paiement) {
 
-
-            return (object)[
+            return (object) [
 
                 'message' =>
-
-                    "Paiement "
-                    .$paiement->mode_paiement
-                    ." de "
-                    .$paiement->montant
-                    ." HTG enregistré",
-
+                    'Paiement '
+                    . $paiement->mode_paiement
+                    . ' de '
+                    . number_format(
+                        $paiement->montant,
+                        2
+                    )
+                    . ' HTG enregistré',
 
                 'created_at' =>
-
                     $paiement->created_at
-
             ];
-
-
         });
-
-
-
-
-
-
-
 
 
         /*
         |--------------------------------------------------------------------------
-        | Pourcentage paiements
+        | POURCENTAGE DES PAIEMENTS
         |--------------------------------------------------------------------------
+        |
+        | Les pourcentages sont calculés automatiquement
+        | selon les paiements réellement enregistrés.
+        |
         */
 
-
-        $totalPaiements = max(
-            Paiement::count(),
-            1
-        );
+        $totalPaiements = Paiement::count();
 
 
+        if ($totalPaiements > 0) {
 
-        $cashPercent = round(
-            ($cashCount / $totalPaiements) * 100
-        );
+            $cashPercent = round(
+                ($cashCount / $totalPaiements) * 100,
+                1
+            );
+
+            $cardPercent = round(
+                ($cardCount / $totalPaiements) * 100,
+                1
+            );
+
+            $moncashPercent = round(
+                ($moncashCount / $totalPaiements) * 100,
+                1
+            );
+
+            $natcashPercent = round(
+                ($natcashCount / $totalPaiements) * 100,
+                1
+            );
+
+            $virementPercent = round(
+                ($virementCount / $totalPaiements) * 100,
+                1
+            );
+
+        } else {
+
+            $cashPercent = 0;
+
+            $cardPercent = 0;
+
+            $moncashPercent = 0;
+
+            $natcashPercent = 0;
+
+            $virementPercent = 0;
+        }
 
 
-
-        $cardPercent = round(
-            ($cardCount / $totalPaiements) * 100
-        );
-
-
-
-        $moncashPercent = round(
-            ($moncashCount / $totalPaiements) * 100
-        );
-
-
-
-        $natcashPercent = round(
-            ($natcashCount / $totalPaiements) * 100
-        );
-
-
-
-
-
-
-
-
+        /*
+        |--------------------------------------------------------------------------
+        | RETOUR DASHBOARD
+        |--------------------------------------------------------------------------
+        */
 
         return view(
             'caisse.index',
             compact(
+
+                /*
+                | Commandes
+                */
 
                 'commandesPretes',
 
@@ -360,13 +333,21 @@ class CaisseController extends Controller
 
                 'countEnAttente',
 
+
+                /*
+                | Paiements
+                */
+
                 'countPayeesJour',
 
                 'chiffreAffairesJour',
 
-
                 'derniersPaiements',
 
+
+                /*
+                | Moyens de paiement
+                */
 
                 'cashCount',
 
@@ -379,8 +360,11 @@ class CaisseController extends Controller
                 'virementCount',
 
 
-                'bestSelling',
+                /*
+                | Statistiques
+                */
 
+                'bestSelling',
 
                 'todaySales',
 
@@ -389,13 +373,34 @@ class CaisseController extends Controller
                 'averageTicket',
 
 
+                /*
+                | Graphique CA
+                */
+
                 'salesLabels',
 
                 'salesData',
 
 
+                /*
+                | Graphique commandes
+                */
+
+                'orderLabels',
+
+                'orderData',
+
+
+                /*
+                | Activités
+                */
+
                 'activities',
 
+
+                /*
+                | Pourcentages
+                */
 
                 'cashPercent',
 
@@ -403,12 +408,37 @@ class CaisseController extends Controller
 
                 'moncashPercent',
 
-                'natcashPercent'
+                'natcashPercent',
 
+                'virementPercent'
             )
         );
-
-
     }
 
+    public function commandes()
+{
+    $commandes = Commande::with('items.plat', 'table')
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+    return view('caisse.commandes', compact('commandes'));
 }
+
+public function historique()
+{
+    $paiements = Paiement::with('commande')
+        ->orderBy('created_at', 'desc')
+        ->paginate(15);
+
+    return view('caisse.historique', compact('paiements'));
+}
+public function facture($id)
+{
+    $paiement = Paiement::with([
+        'commande.items.plat'
+    ])->findOrFail($id);
+
+    return view('caisse.facture', compact('paiement'));
+}
+}
+

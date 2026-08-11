@@ -3,226 +3,263 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Commande;
-use App\Models\Paiement;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-
+use App\Models\Commande;
+use App\Models\Paiement;
 
 class PaiementController extends Controller
 {
-
-
     /**
-     * Liste tout paiements
+     * ============================================================
+     * LISTE DES PAIEMENTS
+     * ============================================================
      */
     public function index()
     {
-
-
-        $paiements = Paiement::with('commande')
-            ->orderBy(
-                'created_at',
-                'desc'
-            )
+        $paiements = Paiement::with([
+                'commande'
+            ])
+            ->orderBy('created_at', 'desc')
             ->paginate(15);
-
-
 
         return view(
             'caisse.paiements',
             compact('paiements')
         );
-
-
     }
 
 
-
-
-
-
-
     /**
-     * Page encaissement
+     * ============================================================
+     * PAGE D'ENCAISSEMENT
+     * ============================================================
      */
     public function create($commandeId)
     {
+        /*
+        |--------------------------------------------------------------------------
+        | Récupérer uniquement la commande
+        | qui est prête à être encaissée
+        |--------------------------------------------------------------------------
+        */
 
-
-        $commande = Commande::findOrFail(
-            $commandeId
-        );
-
+        $commande = Commande::with([
+                'items.plat',
+                'table'
+            ])
+            ->where('id', $commandeId)
+            ->where('statut', 'prete')
+            ->firstOrFail();
 
 
         return view(
             'caisse.encaisser',
             compact('commande')
         );
-
-
     }
 
 
-
-
-
-
-
-
     /**
-     * Enregistrer paiement
+     * ============================================================
+     * ENREGISTRER LE PAIEMENT
+     * ============================================================
      */
     public function store(Request $request)
     {
+        /*
+        |--------------------------------------------------------------------------
+        | Validation
+        |--------------------------------------------------------------------------
+        */
 
+        $validated = $request->validate([
 
-        $request->validate([
+            'commande_id' => [
+                'required',
+                'integer',
+                'exists:commandes,id'
+            ],
 
+            'mode_paiement' => [
+                'required',
+                'in:Espèces,Carte,MonCash,NatCash,Virement'
+            ],
 
-            'commande_id'
-            =>'required|exists:commandes,id',
-
-
-            'mode_paiement'
-            =>'required|in:Espèces,Carte,MonCash,NatCash,Virement',
-
-
-            'montant'
-            =>'required|numeric|min:0'
-
+            'montant' => [
+                'required',
+                'numeric',
+                'min:0.01'
+            ],
 
         ]);
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | Transaction DB
+        |--------------------------------------------------------------------------
+        */
+
+        $paiement = DB::transaction(function () use ($validated) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Récupérer la commande
+            |--------------------------------------------------------------------------
+            */
+
+            $commande = Commande::lockForUpdate()
+                ->findOrFail(
+                    $validated['commande_id']
+                );
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | Vérifier que la commande est prête
+            |--------------------------------------------------------------------------
+            */
+
+            if ($commande->statut !== 'prete') {
+
+                abort(
+                    422,
+                    'Cette commande n’est plus disponible pour encaissement.'
+                );
+            }
 
 
-        DB::transaction(function() use ($request){
+            /*
+            |--------------------------------------------------------------------------
+            | Vérifier le montant
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                (float) $validated['montant']
+                !=
+                (float) $commande->total
+            ) {
+
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'montant' =>
+                            'Le montant du paiement doit être égal au total de la commande.'
+                    ]);
+            }
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | Générer numéro facture
+            |--------------------------------------------------------------------------
+            */
 
-            $commande = Commande::findOrFail(
-                $request->commande_id
-            );
+            $numeroFacture =
+                'FAC-'
+                . now()->format('Ymd')
+                . '-'
+                . str_pad(
+                    (Paiement::count() + 1),
+                    5,
+                    '0',
+                    STR_PAD_LEFT
+                );
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | Créer paiement
+            |--------------------------------------------------------------------------
+            */
 
+            $paiement = Paiement::create([
 
-
-
-
-            Paiement::create([
-
-
-                'commande_id'=>
+                'commande_id' =>
                     $commande->id,
 
+                'montant' =>
+                    $validated['montant'],
 
-                'montant'=>
-                    $request->montant,
+                'mode_paiement' =>
+                    $validated['mode_paiement'],
 
-
-                'mode_paiement'=>
-                    $request->mode_paiement,
-
-
-                'caissier'=>
+                'caissier' =>
                     Auth::user()->name ?? 'Admin',
 
-
-
-                'numero_facture'=>
-
-                    'FAC-'
-                    .date('Ymd')
-                    .'-'
-                    .rand(1000,9999)
-
+                'numero_facture' =>
+                    $numeroFacture,
 
             ]);
 
 
-
-
-
-
-
+            /*
+            |--------------------------------------------------------------------------
+            | Changer statut commande
+            |--------------------------------------------------------------------------
+            */
 
             $commande->update([
 
-
-                'statut'=>
-                    'payee'
-
+                'statut' => 'payee'
 
             ]);
 
 
-
+            return $paiement;
         });
 
 
-
-
-
-
-
+        /*
+        |--------------------------------------------------------------------------
+        | Redirection vers facture
+        |--------------------------------------------------------------------------
+        */
 
         return redirect()
-
-            ->route('caisse.dashboard')
-
+            ->route(
+                'caisse.facture',
+                $paiement->id
+            )
             ->with(
-
                 'success',
-
                 'Paiement enregistré avec succès.'
-
             );
-
-
     }
-
-
-
-
-
-
 
 
     /**
-     * Facture
+     * ============================================================
+     * AFFICHER LA FACTURE
+     * ============================================================
      */
     public function facture($id)
     {
-
+        /*
+        |--------------------------------------------------------------------------
+        | Charger paiement + commande + articles
+        |--------------------------------------------------------------------------
+        */
 
         $paiement = Paiement::with([
 
-            'commande.items.plat'
+            'commande',
+
+            'commande.items',
+
+            'commande.items.plat',
+
+            'commande.table'
 
         ])
-
         ->findOrFail($id);
 
 
-
-
-
         return view(
-
             'caisse.facture',
-
             compact('paiement')
-
         );
-
-
     }
-
-
-
 }

@@ -15,6 +15,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\Client\WaitingController;
 use App\Http\Controllers\Admin\VentesController;
 use App\Http\Controllers\PaiementController;
+use App\Http\Controllers\CaisseController;
 
 use App\Models\Commande;
 
@@ -429,7 +430,13 @@ Route::middleware(['auth'])
         ]
     )->name('caisse.encaisser');
 
+    Route::get('/commandes', [CaisseController::class, 'commandes'])
+        ->name('caisse.commandes');
 
+            Route::get('/historique', [CaisseController::class, 'historique'])
+        ->name('caisse.historique');
+        Route::get('/caisse/facture/{id}', [PaiementController::class, 'facture'])
+    ->name('caisse.facture');
 
 });
 

@@ -1,330 +1,370 @@
-@extends('layouts.app')
+@extends('caisse.layouts.app')
 
+
+@section('title', 'Facture #' . ($paiement->numero_facture ?? $paiement->id))
 
 @section('content')
 
-
-<div class="caisse-container">
-
-
-    <div class="facture-card">
+<div class="facture-page">
 
 
 
-        <div class="facture-header">
 
+
+{{-- FACTURE --}}
+<div class="facture-card">
+
+    {{-- HEADER --}}
+    <div class="facture-header">
+
+        <div class="restaurant-info">
+
+            <div class="restaurant-logo">
+                🍽️
+            </div>
 
             <div>
-
-
-                <h1>
-
-                    🍽️ Resto Kay-Y
-
-                </h1>
-
+                <h1>Resto Kay-Y</h1>
 
                 <p>
-
                     Cuisine haïtienne traditionnelle
-
                 </p>
 
-
-            </div>
-
-
-
-            <div class="facture-number">
-
-
-                <strong>
-
-                    {{ $paiement->numero_facture }}
-
-                </strong>
-
-
                 <small>
-
-                    {{ $paiement->created_at->format('d/m/Y H:i') }}
-
+                    Merci de votre confiance
                 </small>
-
-
             </div>
-
-
 
         </div>
 
 
+        <div class="facture-number">
+
+            <span>FACTURE</span>
+
+            <strong>
+                {{ $paiement->numero_facture ?? 'FAC-' . str_pad($paiement->id, 5, '0', STR_PAD_LEFT) }}
+            </strong>
+
+            <small>
+                {{ $paiement->created_at->format('d/m/Y H:i') }}
+            </small>
+
+        </div>
+
+    </div>
 
 
-
-        <hr>
-
+    <div class="facture-divider"></div>
 
 
+    {{-- INFORMATIONS --}}
+    <div class="facture-info">
 
+        <div class="info-box">
 
-        <div class="facture-info">
+            <span>
+                <i class="fa-solid fa-receipt"></i>
+                Commande
+            </span>
 
-
-            <div>
-
-                <span>
-
-                    Commande
-
-                </span>
-
-
-                <strong>
-
-                    #{{ $paiement->commande_id }}
-
-                </strong>
-
-
-            </div>
-
-
-
-            <div>
-
-                <span>
-
-                    Table
-
-                </span>
-
-
-                <strong>
-
-                    {{ $paiement->commande->restaurant_table_id }}
-
-                </strong>
-
-
-            </div>
-
-
-
-            <div>
-
-                <span>
-
-                    Caissier
-
-                </span>
-
-
-                <strong>
-
-                    {{ $paiement->caissier }}
-
-                </strong>
-
-
-            </div>
-
-
+            <strong>
+                #{{ $paiement->commande_id }}
+            </strong>
 
         </div>
 
 
+        <div class="info-box">
+
+            <span>
+                <i class="fa-solid fa-chair"></i>
+                Table
+            </span>
+
+            <strong>
+                {{ $paiement->commande->restaurant_table_id ?? 'N/A' }}
+            </strong>
+
+        </div>
 
 
+        <div class="info-box">
+
+            <span>
+                <i class="fa-solid fa-user"></i>
+                Caissier
+            </span>
+
+            <strong>
+                {{ $paiement->caissier ?? auth()->user()->name ?? 'N/A' }}
+            </strong>
+
+        </div>
 
 
+        <div class="info-box">
+
+            <span>
+                <i class="fa-solid fa-calendar"></i>
+                Date
+            </span>
+
+            <strong>
+                {{ $paiement->created_at->format('d/m/Y') }}
+            </strong>
+
+        </div>
+
+    </div>
+
+
+    {{-- ARTICLES --}}
+    <div class="facture-section-title">
+
+        <h3>
+            <i class="fa-solid fa-utensils"></i>
+            Détails de la commande
+        </h3>
+
+    </div>
+
+
+    <div class="facture-table-wrapper">
 
         <table class="facture-table">
 
-
             <thead>
-
 
                 <tr>
 
-                    <th>
+                    <th>Article</th>
 
-                        Article
+                    <th>Qté</th>
 
-                    </th>
+                    <th>Prix unitaire</th>
 
-
-                    <th>
-
-                        Qté
-
-                    </th>
-
-
-                    <th>
-
-                        Prix
-
-                    </th>
-
-
-                    <th>
-
-                        Total
-
-                    </th>
-
+                    <th>Total</th>
 
                 </tr>
-
 
             </thead>
 
 
-
             <tbody>
 
+                @forelse($paiement->commande->items ?? [] as $item)
+
+                    <tr>
+
+                        <td>
+
+                            <div class="article-name">
+
+                                <span class="article-icon">
+                                    🍽️
+                                </span>
+
+                                <strong>
+                                    {{ $item->plat->nom ?? 'Article supprimé' }}
+                                </strong>
+
+                            </div>
+
+                        </td>
 
 
-            @foreach($paiement->commande->items as $item)
+                        <td>
+
+                            <span class="quantity">
+                                {{ $item->quantite }}
+                            </span>
+
+                        </td>
 
 
-                <tr>
+                        <td>
+
+                            {{ number_format($item->prix, 2) }}
+                            HTG
+
+                        </td>
 
 
-                    <td>
+                        <td>
 
-                        {{ $item->plat->nom }}
+                            <strong>
 
-                    </td>
+                                {{ number_format($item->prix * $item->quantite, 2) }}
 
+                                HTG
 
-                    <td>
+                            </strong>
 
-                        {{ $item->quantite }}
+                        </td>
 
-                    </td>
+                    </tr>
 
+                @empty
 
-                    <td>
+                    <tr>
 
-                        {{ number_format($item->prix,2) }}
+                        <td colspan="4" class="empty-facture">
 
-                        HTG
+                            <i class="fa-solid fa-box-open"></i>
 
-                    </td>
+                            Aucun article trouvé pour cette commande.
 
+                        </td>
 
-                    <td>
+                    </tr>
 
-
-                        {{ number_format($item->prix * $item->quantite,2) }}
-
-                        HTG
-
-
-                    </td>
-
-
-
-                </tr>
-
-
-            @endforeach
-
-
+                @endforelse
 
             </tbody>
 
-
-
         </table>
 
+    </div>
 
 
+    {{-- TOTAL --}}
+    <div class="facture-bottom">
 
+        <div class="payment-information">
 
-
-
-
-        <div class="facture-total">
-
-
-            <div>
-
-
-                Mode paiement :
-
-                <strong>
-
-                    {{ $paiement->mode_paiement }}
-
-                </strong>
-
-
+            <div class="payment-label">
+                <i class="fa-solid fa-credit-card"></i>
+                Mode de paiement
             </div>
 
+            <div class="payment-method">
 
+                @switch($paiement->mode_paiement)
 
-            <h2>
+                    @case('Espèces')
+                        💵 Espèces
+                        @break
 
+                    @case('Carte')
+                        💳 Carte bancaire
+                        @break
 
-                Total :
+                    @case('MonCash')
+                        📱 MonCash
+                        @break
 
-                {{ number_format($paiement->montant,2) }}
+                    @case('NatCash')
+                        👛 NatCash
+                        @break
 
-                HTG
+                    @case('Virement')
+                        🏦 Virement
+                        @break
 
+                    @default
+                        {{ $paiement->mode_paiement }}
 
-            </h2>
+                @endswitch
 
-
+            </div>
 
         </div>
 
 
+        <div class="total-box">
+
+            <span>
+                TOTAL À PAYER
+            </span>
+
+            <strong>
+
+                {{ number_format($paiement->montant, 2) }}
+
+                <small>HTG</small>
+
+            </strong>
+
+        </div>
+
+    </div>
 
 
+    {{-- STATUT --}}
+    <div class="payment-success">
+
+        <i class="fa-solid fa-circle-check"></i>
+
+        <div>
+
+            <strong>
+                Paiement confirmé
+            </strong>
+
+            <span>
+                Cette transaction a été enregistrée avec succès.
+            </span>
+
+        </div>
+
+    </div>
 
 
+    {{-- FOOTER --}}
+    <div class="facture-footer">
 
+        <div>
 
-        <div class="facture-footer">
-
+            <strong>
+                Resto Kay-Y
+            </strong>
 
             <p>
-
-                Merci de votre visite ❤️
-
+                Cuisine haïtienne traditionnelle
             </p>
+
+            <small>
+                Merci de votre visite ❤️
+            </small>
+
+        </div>
+
+
+        <div class="footer-actions">
+
+            <a href="{{ url('/caisse/dashboard') }}" class="btn-secondary">
+
+                <i class="fa-solid fa-house"></i>
+
+                Caisse
+
+            </a>
 
 
             <button
-
-            onclick="window.print()"
-
-            class="btn-pay">
-
+                onclick="window.print()"
+                class="btn-pay">
 
                 <i class="fa-solid fa-print"></i>
 
                 Imprimer
 
-
             </button>
-
-
 
         </div>
 
-
-
-
     </div>
-
-
 
 </div>
 
 
+</div>
+
 @endsection
+
+@push('styles')
+
+
+
+@endpush
