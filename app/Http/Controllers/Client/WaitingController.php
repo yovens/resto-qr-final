@@ -12,19 +12,34 @@ class WaitingController extends Controller
     {
         $table = RestaurantTable::findOrFail($tableId);
 
+        // Tout kòmand aktif sou tab sa (ki poko peye oswa anile)
+        $commandesActives = Commande::with('items.plat')
+            ->where('restaurant_table_id', $tableId)
+            ->whereNotIn('statut', ['payee', 'annulee', 'fermee'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         if ($commandeId) {
-            $commande = Commande::where('id', $commandeId)->where('restaurant_table_id', $tableId)->firstOrFail();
-        } else {
             $commande = Commande::with('items.plat')
-    ->where('restaurant_table_id', $tableId)
-    ->latest()
-    ->first();
+                ->where('id', $commandeId)
+                ->where('restaurant_table_id', $tableId)
+                ->firstOrFail();
+        } else {
+            // Dènye kòmand aktif la, oswa null
+            $commande = $commandesActives->first();
+        }
+
+        // Si pa gen kòmand ditou, voye l nan meni a
+        if (!$commande && !$commandeId) {
+            return redirect('/menu/' . $tableId)->with('info', 'Ou pa gen kòmand aktif sou tab sa a.');
         }
 
         return view('client.waiting', [
             'table' => $table,
             'tableId' => $tableId,
-            'commande' => $commande
+            'commande' => $commande,
+            'commandesActives' => $commandesActives,
+            'hasMultipleOrders' => $commandesActives->count() > 1
         ]);
     }
 }

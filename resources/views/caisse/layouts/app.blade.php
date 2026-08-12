@@ -947,7 +947,77 @@
     }
 
 }
+.menu-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-decoration: none;
+    padding: 12px 14px;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
 
+.menu-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.menu-badge {
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 999px;
+
+    background: #dc2626;
+    color: white;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+}
+
+.menu-badge.zero {
+    background: #94a3b8;
+}
+
+.menu-link:hover .menu-badge {
+    transform: scale(1.08);
+}
+.menu-badge {
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50px;
+
+    background: #dc2626;
+    color: #fff;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    transition: .3s ease;
+}
+
+.menu-badge.zero {
+    background: #94a3b8;
+}
+
+.menu-badge.updated {
+    transform: scale(1.2);
+}
 </style>
 </head>
 <body>
@@ -960,7 +1030,18 @@
     <div class="menu">
         <a href="{{ url('/caisse/dashboard') }}" class="{{ request()->is('caisse/dashboard') ? 'active' : '' }}"><i class="fa-solid fa-chart-line"></i> Tableau de bord</a>
         <a href="{{ url('/caisse/paiements') }}" class="{{ request()->is('caisse/paiements*') ? 'active' : '' }}"><i class="fa-solid fa-credit-card"></i> Paiements</a>
-        <a href="{{ url('/caisse/commandes') }}" class="{{ request()->is('caisse/commandes*') ? 'active' : '' }}"><i class="fa-solid fa-receipt"></i> Commandes prêtes</a>
+<a href="{{ url('/caisse/commandes') }}"
+   class="{{ request()->is('caisse/commandes*') ? 'active' : '' }}">
+
+    <i class="fa-solid fa-receipt"></i>
+
+    <span>Commandes prêtes</span>
+
+    <span id="commandesPretesBadge" class="menu-badge">
+        {{ $countPretes ?? 0 }}
+    </span>
+
+</a>
    
      
     </div>
@@ -1020,7 +1101,73 @@
 
     <div class="footer">© {{ date('Y') }} Resto Kay-Y — Module Caisse </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
 
+    const badge = document.getElementById('commandesPretesBadge');
+
+    if (!badge) {
+        return;
+    }
+
+    function updateCommandesPretes() {
+
+        fetch("{{ route('caisse.commandes.count') }}", {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+
+            if (!response.ok) {
+                throw new Error('Erreur serveur');
+            }
+
+            return response.json();
+
+        })
+        .then(data => {
+
+            const newCount = Number(data.count ?? 0);
+            const oldCount = Number(badge.textContent.trim()) || 0;
+
+            badge.textContent = newCount;
+
+            if (newCount === 0) {
+                badge.classList.add('zero');
+            } else {
+                badge.classList.remove('zero');
+            }
+
+            // Animation si quantité a changé
+            if (newCount !== oldCount) {
+
+                badge.classList.add('updated');
+
+                setTimeout(() => {
+                    badge.classList.remove('updated');
+                }, 400);
+            }
+
+        })
+        .catch(error => {
+            console.error(
+                'Impossible de récupérer le nombre de commandes :',
+                error
+            );
+        });
+    }
+
+    // Vérification immédiate
+    updateCommandesPretes();
+
+    // Puis toutes les 5 secondes
+    setInterval(updateCommandesPretes, 5000);
+
+});
+</script>
 <script>
 const sidebar=document.getElementById("sidebar");
 const toggle=document.getElementById("toggleSidebar");

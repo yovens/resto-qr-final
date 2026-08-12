@@ -15,45 +15,47 @@ use App\Events\NewOrderEvent;
 class ClientController extends Controller
 {
     /**
-     * Montre meni an ak filtrage kategori
+     * --------------------------------------------------------------------------
+     * Meni an — ak deteksyon kòmand aktif
+     * --------------------------------------------------------------------------
      */
-  public function menu(Request $request, $tableId)
-{
-    $table = RestaurantTable::findOrFail($tableId);
-    
-    // 1. Chèche kòmand aktif
-    $activeCommande = Commande::where('restaurant_table_id', $tableId)
-        ->where('archived', false)
-        ->latest()
-        ->first();
+    public function menu(Request $request, $tableId)
+    {
+        $table = RestaurantTable::findOrFail($tableId);
 
-    // 2. Chèche TOUT kategori yo ak plat yo ladan yo
-    // Pa mete 'where' sou ID kategori a isit la
-    $allCategories = Category::with(['plats' => function($q) {
-        $q->where('disponible', true);
-    }])->get();
+        // Dènye kòmand aktif sou tab sa (pa archivée, pa fini/paye)
+        $activeCommande = $this->getActiveCommande($tableId);
 
-    // 3. Si gen yon filtre, nou filtre koleksyon an an memwa (sa pa retire lòt kategori yo)
-    $categories = $allCategories;
-    if ($request->has('category') && !empty($request->category)) {
-        $categories = $allCategories->where('id', $request->category);
+        // Tout kategori ak plato disponib
+        $allCategories = Category::with(['plats' => function ($q) {
+            $q->where('disponible', true);
+        }])->get();
+
+        // Filtre si gen paramèt ?category=
+        $categories = $allCategories;
+        if ($request->has('category') && !empty($request->category)) {
+            $categories = $allCategories->where('id', $request->category);
+        }
+
+        return view('client.menu', [
+            'categories'    => $categories,
+            'allCategories' => $allCategories,
+            'tableId'       => $tableId,
+            'table'         => $table,
+            'activeCommande'=> $activeCommande,
+            'commandeId'    => $activeCommande ? $activeCommande->id : null
+        ]);
     }
 
-    return view('client.menu', [
-        'categories' => $categories,    // Sa a ap itilize pou lis plat yo
-        'allCategories' => $allCategories, // Sa a se sa w ap itilize pou bouton yo (li pa janm chanje)
-        'tableId' => $tableId,
-        'table' => $table,
-        'commandeId' => $activeCommande ? $activeCommande->id : null
-    ]);
-}
     /**
-     * Ajouter atik nan sesyon panier
+     * --------------------------------------------------------------------------
+     * Ajoute nan panier (session)
+     * --------------------------------------------------------------------------
      */
     public function addToCart(Request $request)
     {
         $request->validate([
-            'plat_id' => 'required|exists:plats,id',
+            'plat_id'  => 'required|exists:plats,id',
             'quantite' => 'required|integer|min:1'
         ]);
 
@@ -63,109 +65,173 @@ class ClientController extends Controller
 
         return response()->json([
             'success' => true,
-            'total' => CartService::total($cart)
+            'total'   => CartService::total($cart),
+            'count'   => array_sum(array_column($cart, 'quantite'))
         ]);
     }
 
     /**
-     * Validation commande
+     * --------------------------------------------------------------------------
+     * Checkout — Kreye NOUVO kòmand
+     * Si gen yon lòt ki poko pare, li rete la. Client ka gen plizyè kòmand.
+     * --------------------------------------------------------------------------
      */
     public function checkout(Request $request)
     {
         $request->validate([
             'table_id' => 'required|exists:restaurant_tables,id',
-            'note' => 'nullable|string|max:500'
+            'note'     => 'nullable|string|max:500'
         ]);
 
         $cart = session()->get('cart', []);
 
         if (empty($cart)) {
-            return response()->json(['success' => false, 'message' => 'Panier vide'], 400);
+            return response()->json([
+                'success' => false,
+                'message' => 'Panier ou vid'
+            ], 400);
         }
 
-        // Kreyasyon kòmand
+        // Kreye nouvo kòmand (nou pa fusione ak ansyen an)
         $commande = Commande::create([
             'restaurant_table_id' => $request->table_id,
-            'total' => CartService::total($cart),
-            'statut' => 'nouvelle',
-            'note' => $request->note
+            'total'               => CartService::total($cart),
+            'statut'              => 'nouvelle',
+            'note'                => $request->note,
+            'archived'            => false
         ]);
 
-        // Kreyasyon detay kòmand yo
         foreach ($cart as $platId => $item) {
+            CommandeItem::create([
+                'commande_id' => $commande->id,
+                'plat_id'     => $platId,
+                'quantite'    => $item['quantite'],
+                'prix'        => $item['prix']
+            ]);
+        }
 
-    CommandeItem::create([
-        'commande_id' => $commande->id,
-        'plat_id' => $platId,
-        'quantite' => $item['quantite'],
-        'prix' => $item['prix']
-    ]);
+        $commande->load(['table', 'items.plat']);
 
-}
+        session()->forget('cart');
 
-/*
-|--------------------------------------------------------------------------
-| Recharge toutes les relations
-|--------------------------------------------------------------------------
-*/
-
-$commande = Commande::with([
-    'table',
-    'items.plat'
-])->find($commande->id);
-
-session()->forget('cart');
-
-/*
-|--------------------------------------------------------------------------
-| Broadcast
-|--------------------------------------------------------------------------
-*/
-
-broadcast(
-    new NewOrderEvent($commande)
-)->toOthers();
+        broadcast(new NewOrderEvent($commande))->toOthers();
 
         return response()->json([
-            'success' => true,
-            'message' => 'Commande envoyée ✔',
-            'commande_id' => $commande->id
+            'success'     => true,
+            'message'     => 'Kòmand lan voye ✔',
+            'commande_id' => $commande->id,
+            'total'       => $commande->total
         ]);
     }
 
     /**
- * Détail d'un plat
- */
-public function showPlat($tableId, $id)
-{
-    $table = RestaurantTable::findOrFail($tableId);
+     * --------------------------------------------------------------------------
+     * Ajoute plato nan yon kòmand ki deja egziste (pa poko pare)
+     * Itilize sa lè kliyan an gen yon kòmand aktif epi li vle ajoute lòt bagay
+     * --------------------------------------------------------------------------
+     */
+    public function addToExistingOrder(Request $request, $tableId, $commandeId)
+    {
+        $request->validate([
+            'plat_id'  => 'required|exists:plats,id',
+            'quantite' => 'required|integer|min:1'
+        ]);
 
+        $commande = Commande::where('id', $commandeId)
+            ->where('restaurant_table_id', $tableId)
+            ->whereNotIn('statut', ['payee', 'annulee', 'fermee', 'archivee'])
+            ->firstOrFail();
 
-    $plat = Plat::with('category')
-        ->where('disponible', true)
-        ->findOrFail($id);
+        $plat = Plat::findOrFail($request->plat_id);
 
+        // Si plat la deja nan kòmand lan, nou ajoute kantite a
+        $item = CommandeItem::where('commande_id', $commandeId)
+            ->where('plat_id', $plat->id)
+            ->first();
 
+        if ($item) {
+            $item->quantite += $request->quantite;
+            $item->save();
+        } else {
+            CommandeItem::create([
+                'commande_id' => $commandeId,
+                'plat_id'     => $plat->id,
+                'quantite'    => $request->quantite,
+                'prix'        => $plat->prix_promo ?? $plat->prix
+            ]);
+        }
 
-    // Plat menm kategori
-    $relatedPlats = Plat::where('category_id', $plat->category_id)
-        ->where('id','!=',$plat->id)
-        ->where('disponible',true)
-        ->limit(4)
-        ->get();
+        // Recalcul total
+        $commande->load('items');
+        $commande->total = $commande->items->sum(function ($i) {
+            return $i->prix * $i->quantite;
+        });
+        $commande->save();
 
+        return response()->json([
+            'success'     => true,
+            'message'     => 'Plat ajoute nan kòmand #' . $commande->id,
+            'commande_id' => $commande->id,
+            'total'       => $commande->total
+        ]);
+    }
 
+    /**
+     * --------------------------------------------------------------------------
+     * Detay plat + plato ki sanble
+     * --------------------------------------------------------------------------
+     */
+    public function showPlat($tableId, $id)
+    {
+        $table = RestaurantTable::findOrFail($tableId);
 
-    return view('client.plat-detail', [
+        $plat = Plat::with('category')
+            ->where('disponible', true)
+            ->findOrFail($id);
 
-        'table'=>$table,
+        $relatedPlats = Plat::where('category_id', $plat->category_id)
+            ->where('id', '!=', $plat->id)
+            ->where('disponible', true)
+            ->inRandomOrder()
+            ->limit(4)
+            ->get();
 
-        'tableId'=>$tableId,
+        return view('client.plat-detail', [
+            'table'        => $table,
+            'tableId'      => $tableId,
+            'plat'         => $plat,
+            'relatedPlats' => $relatedPlats
+        ]);
+    }
 
-        'plat'=>$plat,
+    /**
+     * --------------------------------------------------------------------------
+     * Waiting — redireksyon si pa gen commandeId
+     * --------------------------------------------------------------------------
+     */
+    public function waiting($tableId)
+    {
+        $commande = $this->getActiveCommande($tableId);
 
-        'relatedPlats'=>$relatedPlats
+        if (!$commande) {
+            return redirect('/menu/' . $tableId)
+                ->with('info', 'Ou pa gen kòmand aktif. Kòmanse kòmande!');
+        }
 
-    ]);
-}
+        return redirect('/waiting/' . $tableId . '/' . $commande->id);
+    }
+
+    /**
+     * --------------------------------------------------------------------------
+     * Helper prive — dènye kòmand aktif sou yon tab
+     * --------------------------------------------------------------------------
+     */
+    private function getActiveCommande($tableId)
+    {
+        return Commande::where('restaurant_table_id', $tableId)
+            ->where('archived', false)
+            ->whereNotIn('statut', ['payee', 'annulee', 'fermee'])
+            ->latest()
+            ->first();
+    }
 }

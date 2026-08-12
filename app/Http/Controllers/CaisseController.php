@@ -445,5 +445,15 @@ public function facture($id)
 
     return view('caisse.facture', compact('paiement'));
 }
+public function countPretes()
+{
+    $count = Commande::where('statut', 'prete')
+        ->where('archived', 0)
+        ->count();
+
+    return response()->json([
+        'count' => $count
+    ]);
+}
 }
 

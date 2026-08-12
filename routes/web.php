@@ -438,6 +438,9 @@ Route::middleware(['auth'])
         Route::get('/caisse/facture/{id}', [PaiementController::class, 'facture'])
     ->name('caisse.facture');
 
+        Route::get('/commandes/count', [CaisseController::class, 'countPretes'])
+        ->name('caisse.commandes.count');
+
 });
 
 /*
