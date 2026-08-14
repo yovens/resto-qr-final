@@ -443,6 +443,38 @@ Route::middleware(['auth'])
 
 });
 
+
+Route::prefix('caisse')->middleware(['auth'])->group(function () {
+    
+    // DASHBOARD — /caisse/dashboard ap rele metòd index()
+    Route::get('/dashboard', [CaisseController::class, 'index'])
+        ->name('caisse.dashboard');
+    
+    // API pou polling AJAX
+    Route::get('/api/dashboard-data', [CaisseController::class, 'dashboardData'])
+        ->name('caisse.api.dashboard');
+    
+    // Lòt paj yo
+    Route::get('/commandes', [CaisseController::class, 'commandes'])
+        ->name('caisse.commandes');
+    
+    Route::get('/historique', [CaisseController::class, 'historique'])
+        ->name('caisse.historique');
+    
+    Route::get('/facture/{id}', [CaisseController::class, 'facture'])
+        ->name('caisse.facture');
+    
+    // Encaissement
+    Route::get('/encaisser/{id}', [CaisseController::class, 'encaisser'])
+        ->name('caisse.encaisser');
+    
+    Route::post('/paiement', [CaisseController::class, 'paiement'])
+        ->name('caisse.paiement');
+    
+    // API count
+    Route::get('/api/count-pretes', [CaisseController::class, 'countPretes'])
+        ->name('caisse.count-pretes');
+});
 /*
 |--------------------------------------------------------------------------
 | CUISINE
