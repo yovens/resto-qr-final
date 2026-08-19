@@ -209,11 +209,11 @@
                             @endif
                         </td>
                         <td>{{ $commande->created_at->format('d/m/Y H:i') }}</td>
-                        <td>
-                            <a href="/facture/{{ $commande->id }}" class="btn-view">
-                                👁 Voir Facture
-                            </a>
-                        </td>
+                      <td>
+    <a href="{{ route('facture.show', $commande) }}" class="btn-view">
+        👁 Voir Facture
+    </a>
+</td>
                     </tr>
                     @endforeach
                 </tbody>

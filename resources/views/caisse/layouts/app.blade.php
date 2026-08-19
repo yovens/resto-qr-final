@@ -1084,7 +1084,7 @@
                 <i class="fa-solid fa-search" aria-hidden="true"></i>
                 <input id="topbarSearch" type="search" name="q" placeholder="Rechercher une commande...">
             </div>
-            <button type="button" class="icon-btn" aria-label="Notifications"><i class="fa-solid fa-bell" aria-hidden="true"></i><span class="badge">3</span></button>
+           
             <button type="button" class="icon-btn" aria-label="Caisse"><i class="fa-solid fa-wallet" aria-hidden="true"></i></button>
             <div class="user">
                 <div class="avatar">{{ strtoupper(substr(auth()->user()->name ?? 'C',0,1)) }}</div>
@@ -1183,14 +1183,6 @@ function updateClock(){
 }
 updateClock(); setInterval(updateClock,1000);
 
-function showNotification(title,message,color="#B87333"){
-    const notif=document.createElement("div");
-    notif.style.cssText="position:fixed;top:30px;right:30px;width:340px;background:var(--card-bg);border-left:5px solid "+color+";padding:18px;border-radius:18px;box-shadow:0 15px 35px rgba(44,24,16,.15);z-index:99999;opacity:0;transform:translateX(120px);transition:.45s;font-family:var(--font-body);color:var(--ink);border:1px solid var(--linen);border-left-width:5px;";
-    notif.innerHTML="<h3 style='margin-bottom:6px;font-family:var(--font-bistro);font-size:18px;'>"+title+"</h3><div style='font-size:14px;'>"+message+"</div>";
-    document.body.appendChild(notif);
-    setTimeout(()=>{ notif.style.opacity="1"; notif.style.transform="translateX(0)"; },100);
-    setTimeout(()=>{ notif.style.opacity="0"; notif.style.transform="translateX(120px)"; setTimeout(()=>notif.remove(),500); },4500);
-}
 
 const darkBtn=document.getElementById("darkMode");
 const DARK_CLASS="dark-mode"; const DARK_STORAGE_KEY="caisse-dark";

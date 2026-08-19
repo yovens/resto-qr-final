@@ -25,8 +25,8 @@
             <div class="wifi"><i class="fa-solid fa-wifi"></i></div>
         </div>
         <div class="hero-title">
-            <h2>Bonjou 👋</h2>
-            <p>Chwazi nan pi bon plak nou yo pare pou ou.</p>
+            <h2>Salut 👋</h2>
+            <p>Chwazi nan pi bon pla nou yo pare pou ou.</p>
         </div>
     </div>
     <div class="search-wrapper">

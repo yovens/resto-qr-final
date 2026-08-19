@@ -16,6 +16,7 @@ use App\Http\Controllers\Client\WaitingController;
 use App\Http\Controllers\Admin\VentesController;
 use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\CaisseController;
+use App\Http\Controllers\Admin\FactureController;  
 
 use App\Models\Commande;
 
@@ -156,19 +157,20 @@ Route::post(
 |--------------------------------------------------------------------------
 */
 
-
+Route::get('/admin/dashboard-data', [DashboardController::class, 'ajaxData'])->name('admin.dashboard.data');
 Route::prefix('admin')
 ->middleware(['auth'])
 ->group(function(){
 
 
 
+Route::get('/facture/{commande}', [FactureController::class, 'show'])->name('facture.show');
     Route::get(
         '/dashboard',
         [DashboardController::class,'index']
     );
 
-
+Route::get('/facture/{commande}', [FactureController::class, 'show'])->name('facture.show');
 
     Route::get(
         '/ventes',
@@ -474,6 +476,29 @@ Route::prefix('caisse')->middleware(['auth'])->group(function () {
     // API count
     Route::get('/api/count-pretes', [CaisseController::class, 'countPretes'])
         ->name('caisse.count-pretes');
+});
+
+
+Route::prefix('caisse')->middleware(['auth'])->group(function () {
+    
+    // Paj prensipal
+    Route::get('/dashboard', [CaisseController::class, 'index'])->name('caisse.dashboard');
+    
+    // API pou tout paj
+    Route::get('/api/stats', [CaisseController::class, 'stats'])->name('caisse.api.stats');
+    Route::get('/api/search', [CaisseController::class, 'search'])->name('caisse.api.search');
+    Route::get('/api/dashboard-data', [CaisseController::class, 'dashboardData'])->name('caisse.api.dashboard');
+    
+    // Lòt paj
+    Route::get('/commandes', [CaisseController::class, 'commandes'])->name('caisse.commandes');
+    Route::get('/historique', [CaisseController::class, 'historique'])->name('caisse.historique');
+    Route::get('/facture/{id}', [CaisseController::class, 'facture'])->name('caisse.facture');
+    
+    // Encaissement
+    Route::get('/encaisser/{id}', [CaisseController::class, 'encaisser'])->name('caisse.encaisser');
+    Route::post('/paiement', [CaisseController::class, 'paiement'])->name('caisse.paiement');
+    
+    Route::get('/api/count-pretes', [CaisseController::class, 'countPretes'])->name('caisse.count-pretes');
 });
 /*
 |--------------------------------------------------------------------------

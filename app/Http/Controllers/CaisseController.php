@@ -320,4 +320,70 @@ class CaisseController extends Controller
             'count' => $count
         ]);
     }
+        /**
+     * --------------------------------------------------------------------------
+     * API — Stats léger pou polling global (tout paj)
+     * --------------------------------------------------------------------------
+     */
+    public function stats()
+    {
+        $today = Carbon::today();
+
+        return response()->json([
+            'pretes' => Commande::where('statut', 'prete')->count(),
+            'attente' => Commande::whereIn('statut', ['nouvelle', 'en_preparation', 'preparation'])->count(),
+            'payees_jour' => Paiement::whereDate('created_at', $today)->count(),
+            'chiffre_jour' => number_format(Paiement::whereDate('created_at', $today)->sum('montant'), 2),
+            'dernieres_pretes' => Commande::where('statut', 'prete')
+                ->orderBy('updated_at', 'desc')
+                ->limit(5)
+                ->get(['id', 'restaurant_table_id', 'total', 'updated_at'])
+                ->map(fn($c) => [
+                    'id' => $c->id,
+                    'table' => $c->restaurant_table_id,
+                    'total' => number_format($c->total, 2),
+                    'heure' => $c->updated_at->format('H:i')
+                ]),
+            'timestamp' => now()->format('H:i:s')
+        ]);
+    }
+
+    /**
+     * --------------------------------------------------------------------------
+     * API — Recherche commande
+     * --------------------------------------------------------------------------
+     */
+    public function search(Request $request)
+    {
+        $q = $request->get('q', '');
+
+        if (strlen($q) < 1) {
+            return response()->json([]);
+        }
+
+        $commandes = Commande::with('items')
+            ->where(function($query) use ($q) {
+                $query->where('id', 'like', "%{$q}%")
+                      ->orWhere('restaurant_table_id', 'like', "%{$q}%")
+                      ->orWhereHas('items.plat', function($sq) use ($q) {
+                          $sq->where('nom', 'like', "%{$q}%");
+                      });
+            })
+            ->whereIn('statut', ['prete', 'en_preparation', 'nouvelle'])
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function($cmd) {
+                return [
+                    'id' => $cmd->id,
+                    'table' => $cmd->restaurant_table_id,
+                    'statut' => $cmd->statut,
+                    'total' => number_format($cmd->total, 2),
+                    'heure' => $cmd->created_at->format('H:i'),
+                    'url' => route('caisse.encaisser', $cmd->id)
+                ];
+            });
+
+        return response()->json($commandes);
+    }
 }

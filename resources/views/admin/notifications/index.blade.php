@@ -25,10 +25,6 @@
 
         </div>
 
-        <a href="/admin/dashboard" class="btn-dashboard">
-            <i class="fa-solid fa-arrow-left"></i>
-            Tableau de bord
-        </a>
 
     </div>
 
