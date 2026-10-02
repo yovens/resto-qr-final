@@ -1,7 +1,7 @@
 @php
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
-$ip = "192.168.1.186";
+$ip = "10.69.56.32";
 @endphp
 
 @extends('admin.layouts.app')

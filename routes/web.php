@@ -10,7 +10,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Plat\PlatController;
 use App\Http\Controllers\Table\TableController;
 use App\Http\Controllers\Category\CategoryController;
-use App\Http\Controllers\PaymentController;
+
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\Client\WaitingController;
 use App\Http\Controllers\Admin\VentesController;
@@ -142,9 +142,8 @@ Route::post(
 
 Route::post(
     '/payment',
-    [PaymentController::class,'pay']
+    [PaiementController::class,'store']
 );
-
 
 
 
