@@ -16,6 +16,31 @@ use App\Http\Controllers\Api\OrderController;
 
 Route::prefix('v1')->group(function () {
 
+
+Route::get('/images/{filename}', function ($filename) {
+
+    $filename = basename($filename);
+
+    $path = public_path('images/' . $filename);
+
+    if (!is_file($path)) {
+        return response()->json([
+            'message' => 'Image introuvable.',
+        ], 404);
+    }
+
+    $content = file_get_contents($path);
+
+    return response($content, 200, [
+        'Content-Type' => 'image/webp',
+        'Content-Length' => strlen($content),
+        'Access-Control-Allow-Origin' => '*',
+        'Cache-Control' => 'no-cache',
+    ]);
+
+})->where('filename', '.*');
+
+
     /*
     |--------------------------------------------------------------------------
     | AUTH PUBLIC

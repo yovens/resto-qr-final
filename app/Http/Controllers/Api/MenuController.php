@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+
+
 use App\Http\Controllers\Controller;
 use App\Models\Category;
-use App\Models\Plat;
 use App\Models\RestaurantTable;
 
 class MenuController extends Controller
@@ -27,15 +28,18 @@ class MenuController extends Controller
         ->get();
 
         $categories = $categories->map(function ($category) {
-            $category->plats->transform(function ($plat) {
-                $plat->prix_effectif = $plat->prix_promo ?? $plat->prix;
 
+            $category->plats->transform(function ($plat) {
+
+                // Prix effectif
+                $plat->prix_effectif =
+                    $plat->prix_promo ?? $plat->prix;
+
+                // Images situées dans public/images
                 if ($plat->image) {
-                    $plat->image_url = url(
-                        \Illuminate\Support\Facades\Storage::url(
-                            $plat->image
-                        )
-                    );
+                  $plat->image_url = url(
+    'api/v1/images/' . ltrim($plat->image, '/')
+);
                 } else {
                     $plat->image_url = null;
                 }
