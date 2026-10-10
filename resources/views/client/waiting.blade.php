@@ -1,469 +1,373 @@
 @extends('client.layouts.app')
 
-@section('title', 'N ap tann — Kay-Y')
+@section('title', 'Swivi kòmand')
+
+@php
+    $fmt = fn ($n) => number_format((float) $n, 0, ',', ' ');
+    $tableNum = $table->numero ?? $tableId;
+
+    // Texte et étape de chaque statut (doit rester identique à ClientController::statut)
+    $etats = [
+        'nouvelle'       => [1, 'Kwizin nan resevwa kòmand ou', 'Yo pral kòmanse prepare l talè.'],
+        'acceptee'       => [2, 'Y ap prepare manje ou', 'Chèf la sou li. Ou ka jwe yon ti jwèt pandan w ap tann.'],
+        'en_preparation' => [2, 'Y ap prepare manje ou', 'Chèf la sou li. Ou ka jwe yon ti jwèt pandan w ap tann.'],
+        'prete'          => [3, 'Manje ou pare !', 'Y ap pote l ba ou kounye a.'],
+        'servie'         => [4, 'Bon apeti !', 'Si w bezwen lòt bagay, ou ka kòmande ankò.'],
+        'payee'          => [4, 'Mèsi pou vizit ou !', 'Kòmand lan peye. N ap tann ou ankò.'],
+    ];
+    $etat = $commande ? ($etats[$commande->statut] ?? [1, 'Kòmand ou an kou', '']) : null;
+
+    // Estimation : le plat le plus long de la commande, sinon 20 min
+    $estimation = $commande
+        ? (int) ($commande->items->map(fn ($i) => (int) ($i->plat->temps_preparation ?? 0))->max() ?: 20)
+        : 20;
+@endphp
+
+@push('styles')
+<style>
+    .head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; }
+    .head a { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: var(--text-2); }
+    .head .table-pill { font-weight: 700; font-size: 13.5px; padding: 6px 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+
+    .welcome { margin: 0 16px 12px; padding: 12px 14px; border-radius: 12px; background: var(--brand-50); color: var(--brand-600); font-weight: 700; font-size: 14px; display: flex; gap: 8px; align-items: center; }
+
+    .status { margin: 0 16px; padding: 22px 18px 18px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); text-align: center; transition: background .3s, border-color .3s; }
+    .status.ready { background: var(--ready-50); border-color: #bfe3cb; }
+    .status-icon { width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%; display: grid; place-items: center; background: var(--warn-50); color: var(--warn); }
+    .status-icon .ico { width: 30px; height: 30px; }
+    .status.ready .status-icon { background: var(--ready); color: #fff; animation: pop .5s ease; }
+    @keyframes pop { 50% { transform: scale(1.15); } }
+    .status h1 { margin: 0 0 4px; font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
+    .status p { margin: 0; color: var(--text-2); }
+
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 20px 0 6px; }
+    .steps .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+    .steps .bar span { display: block; height: 100%; width: 0; background: var(--brand); transition: width .5s ease; }
+    .steps .bar.done span { width: 100%; }
+    .steps .bar.now span { width: 50%; animation: pulse 1.6s ease-in-out infinite; }
+    .status.ready .steps .bar span { background: var(--ready); }
+    @keyframes pulse { 50% { opacity: .45; } }
+    .step-labels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--text-3); }
+    .step-labels .on { color: var(--text); }
+
+    .times { display: flex; justify-content: center; gap: 18px; margin-top: 14px; font-size: 13px; color: var(--text-2); }
+    .times span { display: inline-flex; align-items: center; gap: 5px; }
+    .times .ico { width: 15px; height: 15px; }
+
+    .orders { display: flex; gap: 8px; overflow-x: auto; padding: 14px 16px 2px; scrollbar-width: none; }
+    .orders::-webkit-scrollbar { display: none; }
+    .order-chip { flex-shrink: 0; padding: 8px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; }
+    .order-chip strong { display: block; }
+    .order-chip span { color: var(--text-3); }
+    .order-chip.current { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-50); }
+
+    .card { margin: 14px 16px 0; padding: 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+    .card h2 { margin: 0 0 8px; font-size: 16px; font-weight: 800; }
+    .line { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+    .line:last-of-type { border-bottom: 0; }
+    .line .q { font-weight: 800; color: var(--text-2); min-width: 28px; }
+    .line .p { margin-left: auto; color: var(--text-2); }
+    .sum { display: flex; justify-content: space-between; padding-top: 10px; margin-top: 4px; border-top: 1px dashed var(--line); font-weight: 800; font-size: 16px; }
+    .note { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg); color: var(--text-2); font-size: 13.5px; }
+    .actions { margin: 14px 16px 0; }
+
+    /* Jeu */
+    .game { margin: 14px 16px 24px; padding: 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+    .game-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+    .game-head h2 { margin: 0; font-size: 16px; font-weight: 800; white-space: nowrap; }
+    .game-head span { text-align: right; }
+    .game-head span { font-size: 12.5px; color: var(--text-3); }
+    .game-box { position: relative; border-radius: 12px; overflow: hidden; background: #cfe9f3; }
+    #gameCanvas { display: block; width: 100%; height: auto; touch-action: manipulation; cursor: pointer; }
+    .game-over { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 4px; background: rgba(20, 35, 31, .78); color: #fff; }
+    .game-over strong { font-size: 20px; }
+    .game-over button { margin-top: 10px; }
+    .game-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 13.5px; color: var(--text-2); }
+    .game-bar b { color: var(--text); }
+</style>
+@endpush
 
 @section('content')
-
-<div class="waiting-page">
-    <div class="waiting-header">
-        <div class="chef-anim">👨‍🍳</div>
-        <h1>Manje ou ap vini!</h1>
-        <p>Tab {{ $tableId }}</p>
+<div class="wrap">
+    <div class="head">
+        <a href="/menu/{{ $tableId }}"><svg class="ico"><use href="#i-back"/></svg> Meni</a>
+        <span class="table-pill">Tab {{ $tableNum }}</span>
     </div>
 
-    <!-- Si gen plizyè kòmand aktif -->
-    @if($hasMultipleOrders)
-    <div class="multi-orders">
-        <h4>📋 Kòmand ou yo</h4>
-        @foreach($commandesActives as $cmd)
-        <a href="/waiting/{{ $tableId }}/{{ $cmd->id }}" class="order-chip {{ $commande && $cmd->id == $commande->id ? 'current' : '' }}">
-            <div class="chip-left">
-                <strong>#{{ $cmd->id }}</strong>
-                <span>{{ $cmd->items->count() }} plat • {{ number_format($cmd->total,0) }} HTG</span>
-            </div>
-            <span class="chip-status status-{{ $cmd->statut }}">
-                {{ $cmd->statut === 'prete' ? '✅ Pare' : ($cmd->statut === 'en_preparation' ? '👨‍🍳 Kwit' : '📝 Nouvo') }}
-            </span>
-        </a>
-        @endforeach
-    </div>
-    @endif
-
-    <!-- Kòmand prensipal la -->
-    @if($commande)
-    <div class="status-card">
-        <div class="status-top">
-            <h3>Kòmand #{{ $commande->id }}</h3>
-            <span class="status-badge" id="statusBadge" data-status="{{ $commande->statut }}">
-                {{ $commande->statut === 'prete' ? 'Pare' : ($commande->statut === 'en_preparation' ? 'Ap kwit' : 'Nouvo') }}
-            </span>
+    @if(!$commande)
+        <div class="status">
+            <div class="status-icon"><svg class="ico"><use href="#i-receipt"/></svg></div>
+            <h1>Pa gen kòmand an kou</h1>
+            <p>Chwazi kèk plat nan meni an pou w kòmande.</p>
+            <a href="/menu/{{ $tableId }}" class="btn btn-primary btn-block" style="margin-top:16px">Wè meni an</a>
         </div>
-
-        <div class="steps">
-            <div class="step done"><div class="step-icon">📝</div><span>Reçue</span></div>
-            <div class="step-line {{ $commande->statut != 'nouvelle' ? 'done' : '' }}" id="line1"></div>
-            <div class="step {{ $commande->statut != 'nouvelle' ? 'done' : '' }}" id="stepCuisine"><div class="step-icon">👨‍🍳</div><span>Kwizin</span></div>
-            <div class="step-line {{ $commande->statut == 'prete' ? 'done' : '' }}" id="line2"></div>
-            <div class="step {{ $commande->statut == 'prete' ? 'done' : '' }}" id="stepReady"><div class="step-icon">🍽️</div><span>Pare</span></div>
-        </div>
-
-        <div class="timer-box">
-            <div>⏱️ Rete</div>
-            <strong id="timer">20:00</strong>
-        </div>
-        <p id="statusText" class="status-msg">
-            {{ $commande->statut === 'prete' ? '🍽️ Kòmand ou pare! Bòn apeti.' : ($commande->statut === 'en_preparation' ? '👨‍🍳 Chef la ap kwit byen cho...' : '📝 Nou resevwa kòmand ou') }}
-        </p>
-
-        @if($commande->items->count())
-        <div class="order-details">
-            <h4>🍽 Detay kòmand lan</h4>
-            @foreach($commande->items as $item)
-            <div class="order-item">
-                <div class="item-left">
-                    <span class="item-qty">x{{ $item->quantite }}</span>
-                    <span>{{ $item->plat->nom }}</span>
-                </div>
-                <strong>{{ number_format($item->plat->prix * $item->quantite,0) }} HTG</strong>
-            </div>
-            @endforeach
-            <div class="order-total">
-                <span>Total</span>
-                <strong>{{ number_format($commande->total,2) }} HTG</strong>
-            </div>
-            @if($commande->note)
-            <div class="order-note-box">
-                📝 {{ $commande->note }}
-            </div>
-            @endif
-        </div>
-        @endif
-        
-        <!-- Bouton nouvelle commande si pare oswa si nap pèmèt toujou -->
-        <div id="newOrderBtn" style="display:{{ $commande->statut == 'prete' ? 'block' : 'none' }};margin-top:20px;">
-            <button onclick="clearActiveAndGoMenu()" class="btn-new-order">
-                <i class="fa-solid fa-plus"></i> Pase yon lòt kòmand
-            </button>
-        </div>
-    </div>
     @else
-    <div class="status-card" style="text-align:center;padding:40px 20px;">
-        <div style="font-size:50px;margin-bottom:15px;">🍽️</div>
-        <h3>Ou pa gen kòmand aktif</h3>
-        <p style="color:var(--terre);margin:10px 0 20px;">Kòmanse kòmande pou ou ka swiv manje ou a.</p>
-        <button onclick="window.location.href='/menu/{{ $tableId }}'" class="btn-new-order">
-            <i class="fa-solid fa-utensils"></i> Wè meni an
-        </button>
-    </div>
-    @endif
+        @if(request('nouvo'))
+            <div class="welcome"><svg class="ico"><use href="#i-check"/></svg> Kòmand lan pase. Mèsi !</div>
+        @endif
 
-    <!-- Jè Tap-Tap Amelyore -->
-    <div class="game-card">
-        <div class="game-header">
-            <h2>🚛 Tap-Tap Kay-Y</h2>
-            <p>Evite twou ak wòch, ranmasse manje! <span id="gameLevel" style="color:var(--lò);font-weight:700;">Nivo 1</span></p>
+        <section class="status {{ $etat[0] >= 3 ? 'ready' : '' }}" id="statusCard"
+                 data-url="{{ url('/menu/' . $tableId . '/commande/' . $commande->id . '/statut') }}"
+                 data-statut="{{ $commande->statut }}">
+            <div class="status-icon" id="statusIcon"><svg class="ico"><use href="#{{ $etat[0] >= 3 ? 'i-check' : 'i-chef' }}"/></svg></div>
+            <h1 id="statusTitle">{{ $etat[1] }}</h1>
+            <p id="statusText">{{ $etat[2] }}</p>
+
+            <div class="steps" id="steps">
+                @for($i = 1; $i <= 4; $i++)
+                    <div class="bar {{ $i < $etat[0] || $etat[0] === 4 ? 'done' : ($i === $etat[0] ? 'now' : '') }}"><span></span></div>
+                @endfor
+            </div>
+            <div class="step-labels" id="stepLabels">
+                @foreach(['Resevwa', 'Nan kwizin', 'Pare', 'Sèvi'] as $i => $lbl)
+                    <span class="{{ $i + 1 <= $etat[0] ? 'on' : '' }}">{{ $lbl }}</span>
+                @endforeach
+            </div>
+
+            <div class="times" id="times" @if($etat[0] >= 3) hidden @endif>
+                <span><svg class="ico"><use href="#i-clock"/></svg> <span id="elapsed">—</span></span>
+                <span>Anviwon {{ $estimation }} min</span>
+            </div>
+        </section>
+
+        @if($hasMultipleOrders)
+            <nav class="orders" aria-label="Kòmand ou yo">
+                @foreach($commandesActives as $cmd)
+                    <a href="/waiting/{{ $tableId }}/{{ $cmd->id }}" class="order-chip {{ $cmd->id == $commande->id ? 'current' : '' }}">
+                        <strong>Kòmand #{{ $cmd->id }}</strong>
+                        <span>{{ $etats[$cmd->statut][1] ?? 'An kou' }}</span>
+                    </a>
+                @endforeach
+            </nav>
+        @endif
+
+        <section class="card">
+            <h2>Kòmand #{{ $commande->id }}</h2>
+            @foreach($commande->items as $item)
+                @php $pu = (float) ($item->prix ?? $item->plat->prix ?? 0); @endphp
+                <div class="line">
+                    <span class="q num">{{ $item->quantite }}×</span>
+                    <span>{{ $item->plat->nom ?? 'Plat' }}</span>
+                    <span class="p num">{{ $fmt($pu * $item->quantite) }}</span>
+                </div>
+            @endforeach
+            <div class="sum"><span>Total</span><span class="num">{{ $fmt($commande->total) }} HTG</span></div>
+            @if($commande->note)
+                <div class="note">Nòt ou : {{ $commande->note }}</div>
+            @endif
+        </section>
+
+        <div class="actions">
+            <a href="/menu/{{ $tableId }}" class="btn btn-block"><svg class="ico"><use href="#i-plus"/></svg> Kòmande lòt bagay</a>
         </div>
-        <div class="game-wrap">
-            <canvas id="gameCanvas" width="350" height="200"></canvas>
-            <div id="gameOverlay" style="display:none;">
-                <div class="go-content">
-                    <div style="font-size:40px;">💥</div>
-                    <h3>Tap-Tap kraze!</h3>
-                    <p>Score: <span id="finalScore">0</span></p>
-                    <button onclick="startGame()">▶ Rejwe</button>
+
+        {{-- Petit jeu pendant l'attente --}}
+        <section class="game" id="game">
+            <div class="game-head">
+                <h2>Tap-Tap Kay-Y</h2>
+                <span>Touche pou sote · ranmase manje</span>
+            </div>
+            <div class="game-box">
+                <canvas id="gameCanvas" width="360" height="200" aria-label="Jwèt Tap-Tap"></canvas>
+                <div class="game-over" id="gameOver">
+                    <strong id="goTitle">Pare pou w kondui ?</strong>
+                    <span id="goText">Evite twou ak wòch yo.</span>
+                    <button type="button" class="btn btn-primary" id="goBtn">Kòmanse</button>
                 </div>
             </div>
-        </div>
-        <div class="game-controls">
-            <div class="game-score">Score: <span id="gameScore">0</span></div>
-            <button id="gameBtn" onclick="startGame()">▶ Kòmanse</button>
-        </div>
-        <div class="game-legend">
-            <span>🍗 +10</span> <span>🥥 +10</span> <span>🥘 +20</span> <span>⭐ Invinsib</span>
-        </div>
-        <p class="game-hint">Tape ekran an oswa bouton <b>Sote</b> pou kontrole</p>
-    </div>
+            <div class="game-bar">
+                <span>Pwen : <b class="num" id="gScore">0</b></span>
+                <span>Pi bon : <b class="num" id="gBest">0</b></span>
+            </div>
+        </section>
+    @endif
 </div>
 
-<style>
-.waiting-page{padding:20px;max-width:500px;margin:0 auto;padding-bottom:100px;}
-.waiting-header{text-align:center;margin-bottom:25px;padding-top:20px;}
-.chef-anim{font-size:60px;margin-bottom:15px;animation:chefBounce 2s infinite;display:inline-block;}
-@keyframes chefBounce{0%,100%{transform:translateY(0) rotate(0);}50%{transform:translateY(-12px) rotate(5deg);}}
-.waiting-header h1{font-family:var(--font-bistro);font-size:28px;color:var(--kreyòl);margin-bottom:6px;}
-.waiting-header p{color:var(--terre);font-size:14px;}
-
-/* Multi-orders */
-.multi-orders{margin-bottom:20px;}
-.multi-orders h4{font-family:var(--font-bistro);font-size:16px;margin-bottom:12px;color:var(--kreyòl);}
-.order-chip{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--blan);border-radius:16px;margin-bottom:8px;text-decoration:none;border:1px solid var(--sable-fonce);box-shadow:0 2px 8px rgba(0,0,0,.04);transition:.2s;}
-.order-chip:active{transform:scale(.98);}
-.order-chip.current{border-color:var(--lò);background:linear-gradient(90deg,var(--blan),#fff8e1);}
-.chip-left{display:flex;flex-direction:column;gap:2px;}
-.chip-left strong{font-size:14px;color:var(--kreyòl);}
-.chip-left span{font-size:12px;color:var(--terre);}
-.chip-status{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;}
-.status-nouvelle{background:#f5f5f5;color:#666;}
-.status-en_preparation{background:#fff3e0;color:#e65100;}
-.status-prete{background:#e8f5e9;color:#2e7d32;}
-
-.status-card{background:var(--blan);border-radius:24px;padding:25px;box-shadow:0 8px 25px rgba(30,58,95,.08);border:1px solid var(--sable-fonce);margin-bottom:25px;}
-.status-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
-.status-card h3{font-family:var(--font-bistro);font-size:20px;color:var(--kreyòl);}
-.status-badge{background:var(--sable);color:var(--terre);padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;transition:.3s;}
-.status-badge.prete{background:var(--vèt);color:#fff;}
-
-.steps{display:flex;align-items:center;justify-content:center;margin:25px 0;}
-.step{text-align:center;width:70px;transition:.4s;}
-.step-icon{width:50px;height:50px;border-radius:50%;background:var(--sable);display:flex;align-items:center;justify-content:center;font-size:20px;margin:0 auto 8px;border:2px solid var(--sable-fonce);transition:.4s;}
-.step span{font-size:11px;color:var(--terre);font-weight:600;}
-.step.done .step-icon{background:linear-gradient(135deg,var(--vèt),#2ecc71);color:#fff;border-color:var(--vèt);box-shadow:0 4px 15px rgba(39,174,96,.3);transform:scale(1.1);}
-.step.done span{color:var(--vèt);font-weight:700;}
-.step-line{flex:1;height:3px;background:var(--sable-fonce);border-radius:3px;position:relative;overflow:hidden;}
-.step-line::after{content:'';position:absolute;left:0;top:0;height:100%;width:0%;background:var(--vèt);transition:width .6s ease;}
-.step-line.done::after{width:100%;}
-
-.timer-box{background:linear-gradient(135deg,var(--sable),var(--sable-fonce));border-radius:16px;padding:20px;text-align:center;margin-top:20px;border:2px dashed var(--lò);}
-.timer-box div{font-size:12px;color:var(--terre);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
-.timer-box strong{font-family:var(--font-mono);font-size:32px;color:var(--rouge-brik);}
-.status-msg{text-align:center;color:var(--terre);font-size:14px;margin-top:15px;min-height:22px;}
-
-.order-details{margin-top:25px;padding-top:20px;border-top:2px dashed var(--sable-fonce);}
-.order-details h4{font-family:var(--font-bistro);margin-bottom:15px;color:var(--kreyòl);font-size:16px;}
-.order-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--sable-fonce);font-size:14px;}
-.item-left{display:flex;align-items:center;gap:10px;}
-.item-qty{background:var(--sable);padding:2px 8px;border-radius:6px;font-family:var(--font-mono);font-size:12px;font-weight:700;}
-.order-total{display:flex;justify-content:space-between;margin-top:15px;padding-top:15px;border-top:2px solid var(--sable-fonce);font-size:18px;font-weight:700;color:var(--kreyòl);}
-.order-total strong{font-family:var(--font-mono);color:var(--rouge-brik);}
-.order-note-box{margin-top:12px;background:var(--sable);padding:12px;border-radius:12px;font-size:13px;color:var(--terre);border-left:3px solid var(--lò);}
-
-.btn-new-order{width:100%;padding:14px;background:linear-gradient(135deg,var(--bleu-haiti),var(--bleu-fonce));color:#fff;border:none;border-radius:16px;font-weight:700;cursor:pointer;font-size:15px;box-shadow:0 6px 20px rgba(30,58,95,.25);transition:.3s;display:flex;align-items:center;justify-content:center;gap:8px;}
-.btn-new-order:active{transform:scale(.98);}
-
-/* Game */
-.game-card{background:var(--blan);border-radius:24px;padding:25px;box-shadow:0 8px 25px rgba(30,58,95,.08);border:1px solid var(--sable-fonce);text-align:center;}
-.game-header{margin-bottom:18px;}
-.game-header h2{font-family:var(--font-bistro);font-size:22px;color:var(--kreyòl);margin-bottom:6px;}
-.game-header p{color:var(--terre);font-size:13px;}
-.game-wrap{position:relative;border-radius:16px;overflow:hidden;border:3px solid var(--kreyòl);margin:0 auto;max-width:350px;}
-#gameCanvas{background:linear-gradient(180deg,#87CEEB 0%,#E0F6FF 55%,#f4e4c1 55%,#d4a843 100%);display:block;width:100%;touch-action:none;}
-#gameOverlay{position:absolute;inset:0;background:rgba(30,58,95,.85);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);}
-.go-content{color:#fff;text-align:center;padding:20px;}
-.go-content h3{font-family:var(--font-bistro);font-size:22px;margin:10px 0;}
-.go-content p{font-family:var(--font-mono);font-size:18px;margin-bottom:15px;}
-.go-content button{padding:10px 28px;background:linear-gradient(135deg,var(--rouge-brik),var(--rouge-fonce));color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;}
-.game-controls{display:flex;justify-content:space-between;align-items:center;margin-top:15px;padding:0 5px;}
-.game-score{font-family:var(--font-mono);font-size:18px;color:var(--kreyòl);font-weight:700;}
-#gameBtn{padding:10px 24px;background:linear-gradient(135deg,var(--rouge-brik),var(--rouge-fonce));color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;transition:.2s;}
-#gameBtn:active{transform:scale(.95);}
-.game-legend{display:flex;justify-content:center;gap:12px;margin-top:12px;font-size:12px;color:var(--terre);}
-.game-hint{text-align:center;font-size:12px;color:var(--terre);margin-top:10px;}
-
-/* Dark */
-body.dark .order-chip{background:#241c16;border-color:#3e3028;}
-body.dark .order-chip.current{background:linear-gradient(90deg,#241c16,#3e3028);}
-body.dark .status-card, body.dark .game-card{background:#241c16;border-color:#3e3028;}
-body.dark .timer-box{background:linear-gradient(135deg,#2a201a,#332820);border-color:#3e3028;}
-body.dark .order-details{border-color:#3e3028;}
-body.dark .order-item{border-color:#3e3028;}
-body.dark .order-note-box{background:#2a201a;}
-</style>
-
-<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-<script>
-const STATUS = "{{ $commande->statut ?? 'nouvelle' }}";
-const CREATED_AT = {{ $commande->created_at->timestamp ?? time() }};
-// TABLE_ID deja defini nan app.blade.php
-const COMMANDE_ID = "{{ $commande->id ?? '' }}";
-
-/* ===== TIMER ===== */
-const PREP_TIME = 20*60;
-function updateTimer(){
-    if(STATUS==='prete'){document.getElementById('timer').innerHTML='00:00';return;}
-    let now=Math.floor(Date.now()/1000), elapsed=now-CREATED_AT, remaining=PREP_TIME-elapsed;
-    if(remaining<=0) remaining=0;
-    let m=Math.floor(remaining/60), s=remaining%60;
-    document.getElementById('timer').innerHTML=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
-}
-updateTimer(); 
-let timerInterval = setInterval(updateTimer,1000);
-
-/* ===== PUSHER ===== */
-@if($commande)
-const pusher = new Pusher('{{ config("broadcasting.connections.reverb.key") }}',{
-    wsHost:'{{ config("broadcasting.connections.reverb.options.host") }}',
-    wsPort:{{ config("broadcasting.connections.reverb.options.port") }},
-    forceTLS:false, disableStats:true, cluster:'mt1'
-});
-const channel = pusher.subscribe('commande.'+COMMANDE_ID);
-
-channel.bind('order-accepted',()=>{
-    document.getElementById('stepCuisine').classList.add('done');
-    document.getElementById('line1').classList.add('done');
-    document.getElementById('statusText').innerHTML='👨‍🍳 Chef la ap kwit byen cho...';
-    const badge = document.getElementById('statusBadge');
-    badge.innerText='Ap kwit'; badge.className='status-badge status-en_preparation';
-    showToast('👨‍🍳 Kòmand ou an kwit!');
-});
-
-channel.bind('order-ready',()=>{
-    clearInterval(timerInterval);
-    document.getElementById('stepCuisine').classList.add('done');
-    document.getElementById('stepReady').classList.add('done');
-    document.getElementById('line2').classList.add('done');
-    document.getElementById('timer').innerHTML='00:00';
-    document.getElementById('statusText').innerHTML='🍽️ Kòmand ou pare! Bòn apeti.';
-    const badge = document.getElementById('statusBadge');
-    badge.innerText='Pare'; badge.className='status-badge status-prete';
-    document.getElementById('newOrderBtn').style.display='block';
-    showToast('🍽️ Manje ou pare!');
-});
-@endif
-
-function clearActiveAndGoMenu(){
-    // Nou pa efase tout kòmand yo, nou jis retire dènye a nan localStorage
-    // pou pèmèt yon nouvo kòmand
-    localStorage.removeItem('kayy_cmd_'+TABLE_ID);
-    window.location.href='/menu/'+TABLE_ID;
-}
-
-/* ===== JÈ TAP-TAP AMELYORE ===== */
-const canvas=document.getElementById('gameCanvas');
-const ctx=canvas.getContext('2d');
-let gameLoop, score=0, isPlaying=false, tapY=140, tapVel=0, gravity=0.5, 
-    obstacles=[], foods=[], particles=[], clouds=[], frame=0, level=1, speed=3, invincible=0;
-
-function drawTap(x,y){
-    // Kò
-    ctx.fillStyle='#c0392b'; ctx.fillRect(x, y, 44, 22);
-    ctx.fillRect(x+2, y-8, 40, 8); // toit
-    // Fenet
-    ctx.fillStyle='#f1c40f'; 
-    ctx.fillRect(x+5, y+3, 10, 7); 
-    ctx.fillRect(x+19, y+3, 10, 7);
-    ctx.fillRect(x+33, y+3, 8, 7);
-    // Rou
-    ctx.fillStyle='#2c1810';
-    ctx.beginPath(); ctx.arc(x+10, y+22, 6, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x+34, y+22, 6, 0, Math.PI*2); ctx.fill();
-    // Dekorasyon jòn
-    ctx.fillStyle='#f1c40f'; ctx.fillRect(x+2, y+14, 40, 3);
-    // Vèyik
-    if(isPlaying){
-        ctx.fillStyle='rgba(255,255,255,.35)';
-        ctx.fillRect(x-12, y+6, 8, 2);
-        ctx.fillRect(x-16, y+12, 6, 2);
-    }
-    // Boukliye
-    if(invincible>0){
-        ctx.strokeStyle='rgba(212,168,67,'+(Math.abs(Math.sin(frame/5))*0.8+0.2)+')';
-        ctx.lineWidth=2;
-        ctx.beginPath(); ctx.arc(x+22, y+7, 30, 0, Math.PI*2); ctx.stroke();
-    }
-}
-
-function drawObs(o){
-    if(o.type==='hole'){
-        ctx.fillStyle='#5d4037'; ctx.fillRect(o.x, 160-o.h, 24, o.h);
-        ctx.fillStyle='#3e2723'; ctx.fillRect(o.x+2, 160-o.h, 20, 4);
-        ctx.fillStyle='#8d6e63'; ctx.fillRect(o.x, 160-o.h, 24, 3);
-    } else {
-        // Wòch
-        ctx.fillStyle='#795548';
-        ctx.beginPath(); ctx.moveTo(o.x+12, 160-o.h); ctx.lineTo(o.x+24, 160); ctx.lineTo(o.x, 160); ctx.fill();
-        ctx.fillStyle='#5d4037'; ctx.fillRect(o.x+8, 160-o.h+5, 8, 4);
-    }
-}
-
-function drawFood(f){
-    const icons=['🍗','🍌','🥥','🌶️','🍚','🥘'];
-    ctx.font='20px serif';
-    ctx.shadowColor='rgba(0,0,0,.2)'; ctx.shadowBlur=4;
-    ctx.fillText(icons[f.type%6], f.x, f.y);
-    ctx.shadowBlur=0;
-}
-
-function drawCloud(){
-    clouds.forEach(c=>{
-        ctx.fillStyle='rgba(255,255,255,.75)';
-        ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(c.x+c.r*.6, c.y-c.r*.3, c.r*.8, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(c.x-c.r*.6, c.y-c.r*.2, c.r*.6, 0, Math.PI*2); ctx.fill();
-        c.x -= c.speed;
-    });
-    if(frame%100===0) clouds.push({x:360, y:15+Math.random()*50, r:12+Math.random()*12, speed:0.4+Math.random()*0.6});
-    clouds = clouds.filter(c=>c.x>-60);
-}
-
-function createParticles(x,y,color){
-    for(let i=0;i<10;i++){
-        particles.push({
-            x:x, y:y, vx:(Math.random()-.5)*5, vy:(Math.random()-.5)*5,
-            life:25, color:color||'#f1c40f', size:2+Math.random()*3
-        });
-    }
-}
-
-function drawParticles(){
-    for(let i=particles.length-1;i>=0;i--){
-        let p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.life--; p.vy+=0.15;
-        ctx.globalAlpha=p.life/25;
-        ctx.fillStyle=p.color;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
-        ctx.globalAlpha=1;
-        if(p.life<=0) particles.splice(i,1);
-    }
-}
-
-function startGame(){
-    if(isPlaying) return;
-    isPlaying=true; score=0; frame=0; tapY=140; tapVel=0; 
-    obstacles=[]; foods=[]; particles=[]; clouds=[]; level=1; speed=3; invincible=0;
-    document.getElementById('gameBtn').innerText='⏸ Kanpe';
-    document.getElementById('gameBtn').onclick=stopGame;
-    document.getElementById('gameScore').innerText='0';
-    document.getElementById('gameLevel').innerText='Nivo 1';
-    document.getElementById('gameOverlay').style.display='none';
-    gameLoop=setInterval(updateGame, 20);
-}
-
-function stopGame(){
-    isPlaying=false; clearInterval(gameLoop);
-    document.getElementById('gameBtn').innerText='▶ Kòmanse';
-    document.getElementById('gameBtn').onclick=startGame;
-}
-
-function jump(){
-    if(!isPlaying) return;
-    tapVel = -6.5;
-}
-
-function gameOver(){
-    stopGame();
-    document.getElementById('gameOverlay').style.display='flex';
-    document.getElementById('finalScore').innerText=score;
-}
-
-// Kontwòl
-canvas.addEventListener('touchstart',(e)=>{e.preventDefault();jump();},{passive:false});
-canvas.addEventListener('mousedown',(e)=>{e.preventDefault();jump();});
-document.addEventListener('keydown',(e)=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();jump();}});
-
-function updateGame(){
-    ctx.clearRect(0,0,350,200);
-    
-    // Solèy
-    ctx.fillStyle='rgba(255,215,0,.25)';
-    ctx.beginPath(); ctx.arc(300, 35, 22, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle='rgba(255,215,0,.1)';
-    ctx.beginPath(); ctx.arc(300, 35, 32, 0, Math.PI*2); ctx.fill();
-    
-    drawCloud();
-    
-    // Sol
-    ctx.fillStyle='#d4a843'; ctx.fillRect(0, 160, 350, 40);
-    ctx.fillStyle='#b8933f'; ctx.fillRect(0, 160, 350, 4);
-    // Liy wout
-    ctx.fillStyle='rgba(255,255,255,.25)';
-    for(let i=0;i<6;i++){
-        let lx=((frame*speed)%60)+i*60;
-        ctx.fillRect(lx, 178, 25, 3);
-    }
-    
-    frame++;
-    tapVel += gravity;
-    tapY += tapVel;
-    if(tapY > 140){ tapY=140; tapVel=0; }
-    if(tapY < 0) tapY=0;
-    
-    // Nivo
-    if(frame%400===0){ level++; speed+=0.25; document.getElementById('gameLevel').innerText='Nivo '+level; }
-    
-    // Boukliye
-    if(invincible>0) invincible--;
-    
-    drawTap(50, tapY);
-    
-    // Obstacles
-    let spawnRate = Math.max(55, 95 - level*4);
-    if(frame % spawnRate === 0){
-        let type = Math.random()>0.75 ? 'rock' : 'hole';
-        obstacles.push({x:350, h:18+Math.random()*22, type:type});
-    }
-    for(let i=obstacles.length-1;i>=0;i--){
-        let o=obstacles[i]; o.x -= speed; drawObs(o);
-        if(!invincible && o.x<88 && o.x>22 && tapY>128-o.h){
-            createParticles(50, tapY+10, '#c0392b');
-            gameOver(); return;
-        }
-        if(o.x<-40) obstacles.splice(i,1);
-    }
-    
-    // Manje
-    if(frame%65===0){
-        foods.push({x:350, y:65+Math.random()*75, type:Math.floor(Math.random()*6)});
-    }
-    for(let i=foods.length-1;i>=0;i--){
-        let f=foods[i]; f.x -= speed; drawFood(f);
-        if(f.x<95 && f.x>30 && Math.abs(f.y-(tapY+8))<24){
-            let pts = (f.type===5?20:10);
-            score += pts;
-            createParticles(f.x, f.y, '#f1c40f');
-            foods.splice(i,1);
-            document.getElementById('gameScore').innerText=score;
-            if(score%50===0 && score>0){ invincible=150; showToast('⭐ Boukliye aktive!'); }
-        } else if(f.x<-20){
-            foods.splice(i,1);
-        }
-    }
-    
-    drawParticles();
-    
-    // UI anndan canvas
-    ctx.fillStyle='rgba(30,58,95,.55)';
-    ctx.beginPath(); ctx.roundRect(8, 8, 90, 28, 8); ctx.fill();
-    ctx.fillStyle='#fff'; ctx.font='bold 13px "IBM Plex Mono",monospace';
-    ctx.fillText(score+' pts', 16, 26);
-}
-</script>
+<audio id="readySound" preload="auto"><source src="{{ asset('sounds/notification.mp3') }}" type="audio/mpeg"></audio>
 @endsection
+
+@push('scripts')
+@if($commande)
+<script>
+/* ==========================================================
+   Suivi du statut (requête locale toutes les 4 s, sans internet)
+   ========================================================== */
+(function () {
+    const card   = document.getElementById('statusCard');
+    const ETATS  = @json($etats, JSON_UNESCAPED_UNICODE);
+    const CREATED = {{ $commande->created_at->timestamp }};
+    let statut   = card.dataset.statut;
+    let stopped  = false;
+
+    try { localStorage.setItem('kayy_cmd_' + KY.TABLE_ID, @json($commande->id)); } catch (e) {}
+
+    function elapsed() {
+        const min = Math.max(0, Math.floor((Date.now() / 1000 - CREATED) / 60));
+        document.getElementById('elapsed').textContent = min < 1 ? 'Voye kounye a' : 'Voye depi ' + min + ' min';
+    }
+    elapsed(); setInterval(elapsed, 30000);
+
+    function apply(s) {
+        const e = ETATS[s] || [1, 'Kòmand ou an kou', ''];
+        const step = e[0];
+        card.classList.toggle('ready', step >= 3);
+        document.getElementById('statusTitle').textContent = e[1];
+        document.getElementById('statusText').textContent = e[2];
+        document.querySelector('#statusIcon use').setAttribute('href', step >= 3 ? '#i-check' : '#i-chef');
+        document.querySelectorAll('#steps .bar').forEach((b, i) => {
+            b.className = 'bar ' + (i + 1 < step || step === 4 ? 'done' : (i + 1 === step ? 'now' : ''));
+        });
+        document.querySelectorAll('#stepLabels span').forEach((l, i) => l.classList.toggle('on', i + 1 <= step));
+        document.getElementById('times').hidden = step >= 3;
+    }
+
+    function celebrate() {
+        try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {}
+        const snd = document.getElementById('readySound');
+        if (snd) { snd.currentTime = 0; snd.play().catch(() => {}); }
+        KY.toast('Manje ou pare !');
+    }
+
+    async function poll() {
+        if (stopped || document.visibilityState !== 'visible') return;
+        try {
+            const r = await fetch(card.dataset.url, { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
+            if (!r.ok) return;
+            const data = await r.json();
+            if (data.statut && data.statut !== statut) {
+                const wasReady = (ETATS[statut] || [1])[0] >= 3;
+                statut = data.statut;
+                apply(statut);
+                if (!wasReady && data.statut === 'prete') celebrate();
+            }
+            if (data.termine) stopped = true;
+        } catch (e) { /* réseau local momentanément indisponible : on réessaie */ }
+    }
+    setInterval(poll, 4000);
+    document.addEventListener('visibilitychange', poll);
+})();
+
+/* ==========================================================
+   Jeu Tap-Tap
+   ========================================================== */
+(function () {
+    const canvas = document.getElementById('gameCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height, GROUND = 160;
+    const overlay = document.getElementById('gameOver');
+    const scoreEl = document.getElementById('gScore');
+    const bestEl  = document.getElementById('gBest');
+    const BEST_KEY = 'kayy_taptap_best';
+    let best = 0; try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) {}
+    bestEl.textContent = best;
+
+    let loop = null, playing = false, score, frame, y, vy, speed, obstacles, foods, particles, clouds, shield;
+
+    function reset() {
+        score = 0; frame = 0; y = GROUND - 22; vy = 0; speed = 3; shield = 0;
+        obstacles = []; foods = []; particles = []; clouds = [];
+        scoreEl.textContent = '0';
+    }
+
+    function rrect(x, yy, w, h, r) {
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, yy, w, h, r); else ctx.rect(x, yy, w, h);
+        ctx.fill();
+    }
+
+    function drawBus(x, top) {
+        ctx.fillStyle = '#c0392b'; rrect(x, top, 46, 22, 4); rrect(x + 2, top - 8, 42, 9, 3);
+        ctx.fillStyle = '#f4c542'; ctx.fillRect(x + 5, top + 3, 10, 7); ctx.fillRect(x + 19, top + 3, 10, 7); ctx.fillRect(x + 33, top + 3, 9, 7);
+        ctx.fillStyle = '#0f9b8e'; ctx.fillRect(x + 2, top + 14, 42, 3);
+        ctx.fillStyle = '#1d1915';
+        ctx.beginPath(); ctx.arc(x + 11, top + 22, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 35, top + 22, 6, 0, Math.PI * 2); ctx.fill();
+        if (shield > 0) {
+            ctx.strokeStyle = 'rgba(244,197,66,' + (0.4 + Math.abs(Math.sin(frame / 6)) * 0.6) + ')';
+            ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 23, top + 8, 31, 0, Math.PI * 2); ctx.stroke();
+        }
+    }
+
+    function tick() {
+        frame++;
+        // Décor
+        ctx.fillStyle = '#cfe9f3'; ctx.fillRect(0, 0, W, GROUND);
+        ctx.fillStyle = 'rgba(244,197,66,.35)'; ctx.beginPath(); ctx.arc(W - 50, 36, 20, 0, Math.PI * 2); ctx.fill();
+        if (frame % 110 === 0) clouds.push({ x: W + 30, y: 20 + Math.random() * 45, r: 10 + Math.random() * 10 });
+        ctx.fillStyle = 'rgba(255,255,255,.85)';
+        clouds.forEach(c => { c.x -= 0.6; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, 7); ctx.arc(c.x + c.r, c.y + 2, c.r * .8, 0, 7); ctx.arc(c.x - c.r, c.y + 3, c.r * .7, 0, 7); ctx.fill(); });
+        clouds = clouds.filter(c => c.x > -40);
+        ctx.fillStyle = '#d9b46a'; ctx.fillRect(0, GROUND, W, H - GROUND);
+        ctx.fillStyle = 'rgba(255,255,255,.35)';
+        for (let i = 0; i < 7; i++) ctx.fillRect(((i * 60) - (frame * speed) % 60), GROUND + 20, 26, 3);
+
+        // Physique
+        vy += 0.5; y += vy;
+        if (y > GROUND - 22) { y = GROUND - 22; vy = 0; }
+        if (y < 8) { y = 8; vy = 0; }
+        if (frame % 450 === 0) speed += 0.3;
+        if (shield > 0) shield--;
+        drawBus(50, y);
+
+        // Obstacles
+        const every = Math.max(55, 95 - Math.floor(speed * 4));
+        if (frame % every === 0) obstacles.push({ x: W, h: 16 + Math.random() * 20, rock: Math.random() > .7 });
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            const o = obstacles[i]; o.x -= speed;
+            ctx.fillStyle = o.rock ? '#7a5c4a' : '#5b4033';
+            if (o.rock) { ctx.beginPath(); ctx.moveTo(o.x + 12, GROUND - o.h); ctx.lineTo(o.x + 24, GROUND); ctx.lineTo(o.x, GROUND); ctx.fill(); }
+            else ctx.fillRect(o.x, GROUND - o.h, 22, o.h);
+            if (!shield && o.x < 92 && o.x + 22 > 54 && y + 28 > GROUND - o.h) return end();
+            if (o.x < -30) obstacles.splice(i, 1);
+        }
+
+        // Nourriture
+        if (frame % 70 === 0) foods.push({ x: W, y: 70 + Math.random() * 70, t: Math.floor(Math.random() * 5) });
+        ctx.font = '20px serif';
+        for (let i = foods.length - 1; i >= 0; i--) {
+            const f = foods[i]; f.x -= speed;
+            ctx.fillText(['🍗', '🍌', '🥥', '🌶️', '🥘'][f.t], f.x, f.y);
+            if (f.x < 96 && f.x > 40 && Math.abs(f.y - (y + 8)) < 24) {
+                const pts = f.t === 4 ? 20 : 10;
+                score += pts; scoreEl.textContent = score;
+                for (let k = 0; k < 8; k++) particles.push({ x: f.x, y: f.y, vx: (Math.random() - .5) * 4, vy: (Math.random() - .5) * 4, l: 20 });
+                if (score % 100 === 0) { shield = 150; KY.toast('Boukliye aktive !'); }
+                foods.splice(i, 1);
+            } else if (f.x < -20) foods.splice(i, 1);
+        }
+        ctx.fillStyle = '#f4c542';
+        particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.l--; ctx.globalAlpha = p.l / 20; ctx.fillRect(p.x, p.y, 3, 3); });
+        ctx.globalAlpha = 1;
+        particles = particles.filter(p => p.l > 0);
+    }
+
+    function start() {
+        reset(); playing = true; overlay.hidden = true;
+        clearInterval(loop); loop = setInterval(tick, 20);
+    }
+    function end() {
+        playing = false; clearInterval(loop);
+        if (score > best) { best = score; bestEl.textContent = best; try { localStorage.setItem(BEST_KEY, best); } catch (e) {} }
+        document.getElementById('goTitle').textContent = score >= best && score > 0 ? 'Nouvo rekò : ' + score + ' !' : 'Tap-Tap la fè aksidan';
+        document.getElementById('goText').textContent = 'Pwen : ' + score;
+        document.getElementById('goBtn').textContent = 'Rejwe';
+        overlay.hidden = false;
+    }
+    function jump() { if (playing && y >= GROUND - 24) vy = -8.2; }
+
+    document.getElementById('goBtn').addEventListener('click', start);
+    canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); jump(); });
+    document.addEventListener('keydown', (e) => {
+        if (!playing || /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+        if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); }
+    });
+    // Pause automatique si le client quitte l'écran
+    document.addEventListener('visibilitychange', () => { if (document.hidden && playing) end(); });
+
+    // Premier rendu du décor
+    reset(); tick(); clearInterval(loop);
+})();
+</script>
+@endif
+@endpush
