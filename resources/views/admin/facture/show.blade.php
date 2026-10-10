@@ -1,202 +1,206 @@
-@extends('admin.layouts.app')
+@extends('admin.layouts.layout')
 
 @section('title', 'Facture #' . $commande->id)
 
-@section('content')
+@php
+    $fmt = fn ($n) => number_format((float) $n, 2, ',', ' ');
 
+    $statusMap = [
+        'nouvelle'       => ['new',    'Nouvelle'],
+        'acceptee'       => ['prep',   'Acceptée'],
+        'en_preparation' => ['prep',   'En préparation'],
+        'prete'          => ['ready',  'Prête'],
+        'servie'         => ['served', 'Servie'],
+        'payee'          => ['ready',  'Payée'],
+    ];
+    [$stCls, $stLabel] = $statusMap[$commande->statut] ?? ['served', ucfirst(str_replace('_', ' ', (string) $commande->statut))];
+
+    $lignes = $commande->items->map(function ($item) {
+        $pu = (float) ($item->prix_unitaire ?? $item->plat->prix ?? 0);
+        return (object) [
+            'nom'   => $item->plat->nom ?? 'Plat supprimé',
+            'note'  => $item->commentaire ?? null,
+            'qte'   => (int) $item->quantite,
+            'pu'    => $pu,
+            'total' => $pu * (int) $item->quantite,
+        ];
+    });
+
+    $sousTotal = $lignes->sum('total');
+    $total     = (float) $commande->total;
+    $remise    = (float) ($commande->remise ?? 0);
+
+    // Différence entre le total enregistré et la somme des plats (service, remise…)
+    $ecart     = round($total - $sousTotal, 2);
+    $tauxEcart = $sousTotal > 0 ? round($ecart / $sousTotal * 100) : 0;
+
+    $numero = str_pad($commande->id, 5, '0', STR_PAD_LEFT);
+@endphp
+
+@push('styles')
 <style>
-    .facture-container {
-        max-width: 800px;
-        margin: 40px auto;
-        background: #fff;
-        border-radius: 16px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-        padding: 40px;
+    .invoice { max-width: 760px; }
+    .inv-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding: 24px; border-bottom: 1px solid var(--border); }
+    .inv-brand { display: flex; align-items: center; gap: 12px; }
+    .inv-brand .brand-mark { width: 40px; height: 40px; border-radius: 10px; background: var(--brand); color: #fff; display: grid; place-items: center; font-weight: 800; }
+    .inv-brand strong { display: block; font-size: 16px; }
+    .inv-brand small { color: var(--text-3); }
+    .inv-num { text-align: right; }
+    .inv-num .label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+    .inv-num .n { font-family: var(--mono, monospace); font-size: 20px; font-weight: 700; }
+    .inv-num .d { color: var(--text-2); font-size: 13px; }
+
+    .inv-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--border); }
+    .inv-meta > div { padding: 14px 24px; border-right: 1px solid var(--border); }
+    .inv-meta > div:last-child { border-right: 0; }
+    .inv-meta span { display: block; font-size: 11.5px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+    .inv-meta strong { font-size: 14px; }
+
+    .inv-lines th:first-child, .inv-lines td:first-child { padding-left: 24px; }
+    .inv-lines th:last-child, .inv-lines td:last-child { padding-right: 24px; }
+    .inv-lines .note { display: block; font-size: 12.5px; color: var(--text-3); font-style: italic; margin-top: 2px; }
+
+    .inv-totals { margin-left: auto; width: 100%; max-width: 320px; padding: 14px 24px 22px; }
+    .inv-totals .row { display: flex; justify-content: space-between; padding: 5px 0; color: var(--text-2); }
+    .inv-totals .row.grand { border-top: 1px solid var(--border-strong); margin-top: 8px; padding-top: 12px; color: var(--text); font-size: 18px; font-weight: 800; }
+    .inv-totals .row.discount { color: var(--st-ready); }
+
+    .inv-foot { padding: 14px 24px; border-top: 1px dashed var(--border-strong); text-align: center; color: var(--text-3); font-size: 13px; }
+    .inv-note { margin: 0 24px 16px; padding: 10px 12px; border-radius: var(--radius-sm); background: #fff6dc; color: #6b4a00; font-size: 13px; }
+
+    @media (max-width: 640px) {
+        .inv-head { flex-direction: column; }
+        .inv-num { text-align: left; }
+        .inv-meta { grid-template-columns: 1fr 1fr; }
+        .inv-meta > div:nth-child(2) { border-right: 0; }
+        .inv-meta > div:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
     }
-    .facture-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 30px;
-        padding-bottom: 20px;
-        border-bottom: 3px solid #f59e0b;
-    }
-    .facture-header h1 {
-        font-size: 2rem;
-        color: #1f2937;
-        margin: 0;
-    }
-    .facture-header .badge {
-        background: #f59e0b;
-        color: white;
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-weight: bold;
-    }
-    .info-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        margin-bottom: 30px;
-    }
-    .info-box {
-        background: #f9fafb;
-        padding: 15px;
-        border-radius: 10px;
-    }
-    .info-box strong {
-        color: #6b7280;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-    }
-    .info-box p {
-        margin: 5px 0 0;
-        font-size: 1.1rem;
-        color: #111;
-        font-weight: 600;
-    }
-    .items-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 30px;
-    }
-    .items-table th {
-        background: #1f2937;
-        color: white;
-        padding: 12px;
-        text-align: left;
-    }
-    .items-table td {
-        padding: 12px;
-        border-bottom: 1px solid #e5e7eb;
-    }
-    .items-table tr:last-child td {
-        border-bottom: 2px solid #1f2937;
-    }
-    .total-section {
-        text-align: right;
-        margin-top: 20px;
-    }
-    .total-section .grand-total {
-        font-size: 1.8rem;
-        color: #f59e0b;
-        font-weight: bold;
-    }
-    .actions {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        margin-top: 30px;
-    }
-    .btn-print, .btn-back, .btn-pdf {
-        padding: 12px 24px;
-        border-radius: 10px;
-        border: none;
-        cursor: pointer;
-        font-weight: 600;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .btn-print { background: #1f2937; color: white; }
-    .btn-back { background: #e5e7eb; color: #374151; }
-    .btn-pdf { background: #dc2626; color: white; }
-    
+
+    /* ---------- Impression A4 ---------- */
     @media print {
-        .actions, .btn-back, .btn-print { display: none !important; }
-        .facture-container { box-shadow: none; margin: 0; }
+        @page { margin: 14mm; }
+        .sidebar, .topbar, .page-head, .back-link, .no-print { display: none !important; }
+        .main { margin: 0 !important; }
+        .content { padding: 0 !important; max-width: none; }
+        body { background: #fff; }
+        .invoice { max-width: none; border: 0; }
+        .status { border: 1px solid currentColor; }
+    }
+
+    /* ---------- Impression ticket 80 mm ---------- */
+    @media print {
+        body.ticket { font-size: 12px; }
+        body.ticket .invoice { width: 72mm; margin: 0 auto; }
+        body.ticket .inv-head { flex-direction: column; align-items: center; text-align: center; padding: 6px 0 10px; gap: 6px; }
+        body.ticket .inv-brand { flex-direction: column; gap: 4px; }
+        body.ticket .inv-brand .brand-mark { display: none; }
+        body.ticket .inv-num { text-align: center; }
+        body.ticket .inv-meta { grid-template-columns: 1fr 1fr; }
+        body.ticket .inv-meta > div { padding: 4px 0; border: 0 !important; }
+        body.ticket .inv-meta > div:nth-child(4) { display: none; }
+        body.ticket .inv-lines th, body.ticket .inv-lines td { padding: 3px 0 !important; font-size: 11.5px; white-space: normal; }
+        body.ticket .inv-lines .col-pu { display: none; }
+        body.ticket .inv-totals { max-width: none; padding: 6px 0 10px; }
+        body.ticket .inv-totals .row.grand { font-size: 15px; }
+        body.ticket .inv-note { margin: 0 0 8px; }
+        body.ticket .inv-foot { padding: 8px 0 0; }
+        body.ticket .status { background: none !important; padding: 0; border: 0; }
+        @page { margin: 3mm; }
     }
 </style>
+@endpush
 
-<div class="facture-container">
-    {{-- HEADER --}}
-    <div class="facture-header">
-        <div>
-            <h1>🧾 FACTURE</h1>
-            <p style="color: #6b7280; margin-top: 5px;">Restaurant PRO</p>
-        </div>
-        <div style="text-align: right;">
-            <span class="badge">#{{ $commande->id }}</span>
-            <p style="margin-top: 10px; color: #6b7280;">
-                {{ $commande->created_at->format('d/m/Y à H:i') }}
-            </p>
-        </div>
+@section('content')
+
+<a href="{{ url()->previous() !== url()->current() ? url()->previous() : url('/admin/ventes') }}" class="back-link no-print"><i data-lucide="arrow-left"></i> Retour</a>
+
+<div class="page-head">
+    <div>
+        <h1>Facture n° {{ $numero }}</h1>
+        <p>Table {{ $commande->table->numero ?? '—' }} · {{ $commande->created_at->format('d/m/Y à H:i') }}</p>
     </div>
-
-    {{-- INFO CLIENT & TABLE --}}
-    <div class="info-grid">
-        <div class="info-box">
-            <strong>👤 Client</strong>
-            <p>{{ $commande->client ?? 'Client standard' }}</p>
-        </div>
-        <div class="info-box">
-            <strong>🪑 Table</strong>
-            <p>Table {{ $commande->table->numero ?? 'N/A' }}</p>
-        </div>
-        <div class="info-box">
-            <strong>📋 Statut</strong>
-            <p>
-                @if($commande->statut == 'nouvelle')
-                    <span style="color: #3b82f6;">Nouvelle</span>
-                @elseif($commande->statut == 'en_preparation')
-                    <span style="color: #f59e0b;">En préparation</span>
-                @else
-                    <span style="color: #10b981;">Prête</span>
-                @endif
-            </p>
-        </div>
-        <div class="info-box">
-            <strong>👨‍🍳 Servi par</strong>
-            <p>{{ $commande->user->name ?? 'Staff' }}</p>
-        </div>
-    </div>
-
-    {{-- DETAY PLAT YO --}}
-    <table class="items-table">
-        <thead>
-            <tr>
-                <th>Plat</th>
-                <th style="text-align: center;">Qté</th>
-                <th style="text-align: right;">Prix Unitaire</th>
-                <th style="text-align: right;">Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($commande->items as $item)
-            <tr>
-                <td>
-                    <strong>{{ $item->plat->nom ?? 'Plat supprimé' }}</strong>
-                    @if($item->commentaire)
-                        <br><small style="color: #6b7280;">Note: {{ $item->commentaire }}</small>
-                    @endif
-                </td>
-                <td style="text-align: center;">{{ $item->quantite }}</td>
-                <td style="text-align: right;">{{ number_format($item->prix_unitaire ?? $item->plat->prix ?? 0, 2) }} HTG</td>
-                <td style="text-align: right;">
-                    <strong>{{ number_format(($item->prix_unitaire ?? $item->plat->prix ?? 0) * $item->quantite, 2) }} HTG</strong>
-                </td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table>
-
-    {{-- TOTAL --}}
-    <div class="total-section">
-        <p style="color: #6b7280; margin-bottom: 5px;">Total à payer</p>
-        <p class="grand-total">{{ number_format($commande->total, 2) }} HTG</p>
-        @if($commande->remise > 0)
-            <p style="color: #10b981; font-size: 0.9rem;">Remise appliquée: {{ $commande->remise }}%</p>
-        @endif
-    </div>
-
-    {{-- BOUTON YO --}}
-    <div class="actions">
-        <a href="{{ url()->previous() }}" class="btn-back">⬅ Retour</a>
-        <button onclick="window.print()" class="btn-print">🖨 Imprimer</button>
-        {{-- Si ou gen dompdf enstale --}}
-        {{-- <a href="{{ route('facture.download', $commande) }}" class="btn-pdf">📄 Télécharger PDF</a> --}}
+    <div class="page-actions no-print">
+        <button type="button" class="btn" onclick="printAs('ticket')"><i data-lucide="receipt"></i> Ticket 80 mm</button>
+        <button type="button" class="btn btn-primary" onclick="printAs('a4')"><i data-lucide="printer"></i> Imprimer A4</button>
     </div>
 </div>
 
+<article class="card invoice">
+    <header class="inv-head">
+        <div class="inv-brand">
+            <span class="brand-mark">KY</span>
+            <div>
+                <strong>Resto Kay-Y</strong>
+                <small>{{ config('app.restaurant_adresse', '') }}</small>
+            </div>
+        </div>
+        <div class="inv-num">
+            <div class="label">Facture</div>
+            <div class="n">#{{ $numero }}</div>
+            <div class="d num">{{ $commande->created_at->format('d/m/Y · H:i') }}</div>
+        </div>
+    </header>
+
+    <div class="inv-meta">
+        <div><span>Table</span><strong>{{ $commande->table->numero ?? '—' }}</strong></div>
+        <div><span>Client</span><strong>{{ $commande->client ?: 'Sur place' }}</strong></div>
+        <div><span>Statut</span><span class="status {{ $stCls }}" style="display:inline-flex;margin:0;text-transform:none;letter-spacing:0">{{ $stLabel }}</span></div>
+        <div><span>Servi par</span><strong>{{ $commande->user->name ?? '—' }}</strong></div>
+    </div>
+
+    <table class="table inv-lines">
+        <thead>
+            <tr>
+                <th>Article</th>
+                <th class="right">Qté</th>
+                <th class="right col-pu">Prix unit.</th>
+                <th class="right">Montant</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($lignes as $l)
+                <tr>
+                    <td>
+                        <strong>{{ $l->nom }}</strong>
+                        @if($l->note)<span class="note">{{ $l->note }}</span>@endif
+                    </td>
+                    <td class="right num">{{ $l->qte }}</td>
+                    <td class="right num col-pu muted">{{ $fmt($l->pu) }}</td>
+                    <td class="right num"><strong>{{ $fmt($l->total) }}</strong></td>
+                </tr>
+            @empty
+                <tr><td colspan="4" class="empty">Aucun article sur cette commande.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <div class="inv-totals num">
+        <div class="row"><span>Sous-total</span><span>{{ $fmt($sousTotal) }} HTG</span></div>
+
+        @if($ecart > 0.009)
+            <div class="row"><span>Service{{ $tauxEcart > 0 ? ' ('.$tauxEcart.' %)' : '' }}</span><span>{{ $fmt($ecart) }} HTG</span></div>
+        @elseif($ecart < -0.009)
+            <div class="row discount"><span>Remise{{ $remise > 0 ? ' ('.rtrim(rtrim(number_format($remise, 2, ',', ''), '0'), ',').' %)' : '' }}</span><span>− {{ $fmt(abs($ecart)) }} HTG</span></div>
+        @endif
+
+        <div class="row grand"><span>Total</span><span>{{ $fmt($total) }} HTG</span></div>
+    </div>
+
+    @if(!empty($commande->note))
+        <div class="inv-note"><strong>Note :</strong> {{ $commande->note }}</div>
+    @endif
+
+    <footer class="inv-foot">Merci de votre visite · À bientôt chez Resto Kay-Y</footer>
+</article>
+
 @endsection
+
+@push('scripts')
+<script>
+function printAs(format) {
+    document.body.classList.toggle('ticket', format === 'ticket');
+    window.print();
+}
+window.addEventListener('afterprint', () => document.body.classList.remove('ticket'));
+</script>
+@endpush

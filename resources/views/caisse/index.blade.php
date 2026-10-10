@@ -1,515 +1,370 @@
 @extends('caisse.layouts.app')
 
-@section('title','Tableau de bord')
+@section('title', 'Tableau de bord')
+
+@php
+    $fmt = fn ($n) => number_format((float) $n, 2, ',', ' ');
+
+    // Modes de paiement : clé API, libellé, couleur
+    $modes = [
+        ['key' => 'cashCount',     'label' => 'Espèces',  'color' => 'var(--st-ready)'],
+        ['key' => 'cardCount',     'label' => 'Carte',    'color' => 'var(--st-new)'],
+        ['key' => 'moncashCount',  'label' => 'MonCash',  'color' => 'var(--danger)'],
+        ['key' => 'natcashCount',  'label' => 'NatCash',  'color' => 'var(--st-prep)'],
+        ['key' => 'virementCount', 'label' => 'Virement', 'color' => 'var(--text-2)'],
+    ];
+    $modeCounts = [
+        'cashCount'     => (int) ($cashCount ?? 0),
+        'cardCount'     => (int) ($cardCount ?? 0),
+        'moncashCount'  => (int) ($moncashCount ?? 0),
+        'natcashCount'  => (int) ($natcashCount ?? 0),
+        'virementCount' => (int) ($virementCount ?? 0),
+    ];
+    $modeTotal = max(array_sum($modeCounts), 0);
+
+    $modeColor = collect($modes)->mapWithKeys(fn ($m) => [$m['label'] => $m['color']]);
+@endphp
+
+@push('styles')
+<style>
+    .ready-row td { vertical-align: middle; }
+    .ready-row .btn-primary { height: 40px; }
+    .table-pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; }
+    .table-pill svg.lucide { width: 16px; height: 16px; color: var(--text-3); }
+    .wait { font-size: 12.5px; color: var(--text-3); }
+    .wait.long { color: var(--danger); font-weight: 700; }
+
+    .mode-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+    .mode-list li { display: grid; grid-template-columns: 90px 1fr auto; align-items: center; gap: 12px; font-size: 13.5px; }
+    .mode-list .name { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+    .mode-list .name i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .mode-list .bar { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+    .mode-list .bar span { display: block; height: 100%; border-radius: 3px; transition: width .4s; }
+    .mode-list .val { font-weight: 800; min-width: 70px; text-align: right; }
+    .mode-list .val small { color: var(--text-3); font-weight: 600; }
+
+    .mode-badge { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12.5px; }
+    .mode-badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--text-3)); }
+    .updated-at { font-size: 12px; color: var(--text-3); }
+</style>
+@endpush
 
 @section('content')
 
-<div class="welcome-card">
+<div class="page-head">
     <div>
-        <h2>Bonjour {{ auth()->user()->name }}</h2>
-        <p>Bienvenue dans votre espace de caisse. Consultez les commandes prêtes et encaissez les paiements en toute simplicité.</p>
-    </div>
-    <div class="welcome-icon"><i class="fa-solid fa-cash-register"></i></div>
-</div>
-
-<!-- Stats -->
-<div class="stats-grid">
-    <div class="stat-card revenue ticket-perforated">
-        <div>
-            <span>Chiffre d'affaires</span>
-            <h2 id="caCounter">{{ number_format($chiffreAffairesJour,2) }}</h2>
-            <small>Aujourd'hui</small>
-        </div>
-        <div class="icon"><i class="fa-solid fa-sack-dollar"></i></div>
-    </div>
-    <div class="stat-card orders">
-        <div>
-            <span>Commandes prêtes</span>
-            <h2 id="readyCounter">{{ $countPretes }}</h2>
-            <small>À encaisser</small>
-        </div>
-        <div class="icon"><i class="fa-solid fa-bell-concierge"></i></div>
-    </div>
-    <div class="stat-card attente">
-        <div>
-            <span>En attente</span>
-            <h2>{{ $countEnAttente }}</h2>
-            <small>Cuisine</small>
-        </div>
-        <div class="icon"><i class="fa-solid fa-clock"></i></div>
-    </div>
-    <div class="stat-card paiement">
-        <div>
-            <span>Paiements</span>
-            <h2>{{ $countPayeesJour }}</h2>
-            <small>Aujourd'hui</small>
-        </div>
-        <div class="icon"><i class="fa-solid fa-credit-card"></i></div>
+        <h1>Bonjour {{ \Illuminate\Support\Str::of(auth()->user()->name ?? '')->before(' ') }}</h1>
+        <p>{{ ucfirst(now()->locale('fr')->isoFormat('dddd D MMMM YYYY')) }} · <span class="updated-at" id="updatedAt">mis à jour à l'instant</span></p>
     </div>
 </div>
 
-<!-- Charts -->
-<div class="analytics-grid">
-    <div class="chart-card">
-        <div class="card-header">
-            <h3><i class="fa-solid fa-chart-line"></i> Évolution du chiffre d'affaires</h3>
+{{-- Indicateurs --}}
+<section class="kpis">
+    <article class="card kpi">
+        <div class="kpi-top">
+            <span class="kpi-label">Encaissé aujourd'hui</span>
+            <span class="kpi-icon"><i data-lucide="banknote"></i></span>
         </div>
-        <canvas id="salesChart" height="120"></canvas>
-    </div>
-    <div class="mini-stats">
-        <div class="mini-card success"><div><small>Espèces</small><h2>{{ $cashPercent ?? 0 }}%</h2></div><i class="fa-solid fa-money-bill-wave"></i></div>
-        <div class="mini-card primary"><div><small>Carte bancaire</small><h2>{{ $cardPercent ?? 0 }}%</h2></div><i class="fa-solid fa-credit-card"></i></div>
-        <div class="mini-card warning"><div><small>MonCash</small><h2>{{ $moncashPercent ?? 0 }}%</h2></div><i class="fa-solid fa-mobile-screen-button"></i></div>
-        <div class="mini-card purple"><div><small>NatCash</small><h2>{{ $natcashPercent ?? 0 }}%</h2></div><i class="fa-solid fa-wallet"></i></div>
-    </div>
-</div>
+        <div class="kpi-value num"><span id="kCa">{{ $fmt($chiffreAffairesJour) }}</span><span class="unit">HTG</span></div>
+        <div class="kpi-foot"><span><span id="kPayees">{{ $countPayeesJour }}</span> paiements</span></div>
+    </article>
+    <article class="card kpi">
+        <div class="kpi-top">
+            <span class="kpi-label">À encaisser</span>
+            <span class="kpi-icon" style="background: var(--st-ready-bg); color: var(--st-ready)"><i data-lucide="bell-ring"></i></span>
+        </div>
+        <div class="kpi-value num" id="kPretes">{{ $countPretes }}</div>
+        <div class="kpi-foot"><span>commandes prêtes</span></div>
+    </article>
+    <article class="card kpi">
+        <div class="kpi-top">
+            <span class="kpi-label">En cuisine</span>
+            <span class="kpi-icon" style="background: var(--st-prep-bg); color: var(--st-prep)"><i data-lucide="chef-hat"></i></span>
+        </div>
+        <div class="kpi-value num" id="kAttente">{{ $countEnAttente }}</div>
+        <div class="kpi-foot"><span>bientôt à encaisser</span></div>
+    </article>
+    <article class="card kpi">
+        <div class="kpi-top">
+            <span class="kpi-label">Ticket moyen</span>
+            <span class="kpi-icon"><i data-lucide="calculator"></i></span>
+        </div>
+        <div class="kpi-value num"><span id="kTicket">{{ $countPayeesJour > 0 ? number_format($chiffreAffairesJour / $countPayeesJour, 0, ',', ' ') : '0' }}</span><span class="unit">HTG</span></div>
+        <div class="kpi-foot"><span>aujourd'hui</span></div>
+    </article>
+</section>
 
-<div class="analytics-grid two">
-    <div class="chart-card">
-        <div class="card-header"><h3><i class="fa-solid fa-chart-pie"></i> Répartition des paiements</h3></div>
-        <canvas id="paymentChart" height="180"></canvas>
-    </div>
-    <div class="chart-card">
-        <div class="card-header"><h3><i class="fa-solid fa-chart-column"></i> Commandes encaissées</h3></div>
-        <canvas id="ordersChart" height="180"></canvas>
-    </div>
-</div>
-
-<!-- Commandes prêtes -->
-<div class="table-card" style="margin-top:10px;">
-    <div class="card-header">
+{{-- Commandes prêtes : la priorité du caissier --}}
+<article class="card" style="margin-bottom: 16px">
+    <div class="card-head" style="padding-bottom: 12px">
         <div>
-            <h3><i class="fa-solid fa-receipt"></i> Commandes prêtes à encaisser</h3>
-            <small>Toutes les commandes terminées par la cuisine.</small>
+            <h2>Commandes prêtes à encaisser</h2>
+            <span class="sub">La plus ancienne en premier · actualisation automatique</span>
         </div>
-        <span class="count-badge">{{ $countPretes }} commande(s)</span>
     </div>
-    <div class="table-responsive">
-        <table class="premium-table">
+    <div class="table-wrap">
+        <table class="table">
             <thead>
-                <tr><th>#</th><th>Table</th><th>Montant</th><th>Statut</th><th>Heure</th><th>Mode</th><th>Action</th></tr>
+                <tr>
+                    <th>Table</th>
+                    <th>Commande</th>
+                    <th>Depuis</th>
+                    <th class="right">Montant</th>
+                    <th class="right"></th>
+                </tr>
             </thead>
-            <tbody>
-            @forelse($commandesPretes as $commande)
-                <tr>
-                    <td><strong>#{{ $commande->id }}</strong></td>
-                    <td><span class="table-number">🍽️ Table {{ $commande->restaurant_table_id }}</span></td>
-                    <td><strong class="amount">{{ number_format($commande->total,2) }} HTG</strong></td>
-                    <td><span class="badge-ready"><i class="fa-solid fa-circle-check"></i> Prête</span></td>
-                    <td>{{ \Carbon\Carbon::parse($commande->created_at)->format('H:i') }}</td>
-                    <td><span class="badge-mode">À définir</span></td>
-                    <td>
-                    <a href="{{ route('caisse.encaisser', $commande->id) }}"
-   class="btn-pay">
-
-    <i class="fa-solid fa-cash-register"></i>
-
-    Encaisser
-
-</a>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="7" class="empty">
-                        <i class="fa-solid fa-circle-check" style="font-size:50px;color:var(--success);margin-bottom:15px;display:block;"></i>
-                        Aucune commande en attente d'encaissement.
-                    </td>
-                </tr>
-            @endforelse
+            <tbody id="readyRows">
+                @forelse($commandesPretes->sortBy('created_at') as $commande)
+                    <tr class="ready-row" data-id="{{ $commande->id }}">
+                        <td><span class="table-pill"><i data-lucide="armchair"></i>{{ $commande->table->numero ?? $commande->restaurant_table_id }}</span></td>
+                        <td class="num">#{{ $commande->id }}</td>
+                        <td><span class="wait num" data-since="{{ \Carbon\Carbon::parse($commande->created_at)->timestamp }}">{{ \Carbon\Carbon::parse($commande->created_at)->format('H:i') }}</span></td>
+                        <td class="right num"><strong>{{ $fmt($commande->total) }}</strong> <span class="muted">HTG</span></td>
+                        <td class="right">
+                            <a href="{{ route('caisse.encaisser', $commande->id) }}" class="btn btn-primary"><i data-lucide="wallet"></i> Encaisser</a>
+                        </td>
+                    </tr>
+                @empty
+                    <tr class="empty-row"><td colspan="5" class="empty">Aucune commande à encaisser pour le moment.</td></tr>
+                @endforelse
             </tbody>
         </table>
     </div>
-</div>
-<br>
-<br>
-<!-- Derniers paiements & Répartition -->
-<div class="analytics-grid two-columns">
-    <div class="table-card">
-        <div class="card-header">
+</article>
+
+<section class="grid-main" style="align-items: start">
+    {{-- Derniers paiements --}}
+    <article class="card">
+        <div class="card-head" style="padding-bottom: 12px">
             <div>
-                <h3><i class="fa-solid fa-credit-card"></i> Derniers paiements</h3>
-                <small>Historique des paiements enregistrés aujourd'hui.</small>
+                <h2>Derniers paiements</h2>
+                <span class="sub">Aujourd'hui</span>
             </div>
+            <a href="{{ url('/caisse/paiements') }}" class="link">Tout voir</a>
         </div>
-        <div class="table-responsive">
-            <table class="premium-table">
-                <thead><tr><th>Facture</th><th>Commande</th><th>Montant</th><th>Mode</th><th>Date</th></tr></thead>
-                <tbody>
-                @forelse($derniersPaiements as $paiement)
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
                     <tr>
-                        <td><strong>FAC-{{ str_pad($paiement->id,5,'0',STR_PAD_LEFT) }}</strong></td>
-                        <td>#{{ $paiement->commande_id }}</td>
-                        <td><strong class="amount">{{ number_format($paiement->montant,2) }} HTG</strong></td>
-                        <td>
-                            @switch($paiement->mode_paiement)
-                                @case('Espèces')<span class="badge badge-success">💵 Espèces</span>@break
-                                @case('Carte')<span class="badge badge-primary">💳 Carte</span>@break
-                                @case('MonCash')<span class="badge badge-warning">📱 MonCash</span>@break
-                                @case('NatCash')<span class="badge badge-purple">👛 NatCash</span>@break
-                                @default<span class="badge">{{ $paiement->mode_paiement }}</span>
-                            @endswitch
-                        </td>
-                        <td>{{ \Carbon\Carbon::parse($paiement->created_at)->format('d/m/Y H:i') }}</td>
+                        <th>Reçu</th>
+                        <th>Commande</th>
+                        <th>Mode</th>
+                        <th>Heure</th>
+                        <th class="right">Montant</th>
                     </tr>
-                @empty
-                    <tr><td colspan="5" class="empty">Aucun paiement enregistré.</td></tr>
-                @endforelse
+                </thead>
+                <tbody id="payRows">
+                    @forelse($derniersPaiements as $p)
+                        <tr>
+                            <td class="num"><strong>FAC-{{ str_pad($p->id, 5, '0', STR_PAD_LEFT) }}</strong></td>
+                            <td class="num muted">#{{ $p->commande_id }}</td>
+                            <td><span class="mode-badge" style="--c: {{ $modeColor[$p->mode_paiement] ?? 'var(--text-3)' }}">{{ $p->mode_paiement }}</span></td>
+                            <td class="num muted">{{ \Carbon\Carbon::parse($p->created_at)->format('H:i') }}</td>
+                            <td class="right num"><strong>{{ $fmt($p->montant) }}</strong></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="empty">Aucun paiement aujourd'hui.</td></tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
+    </article>
+
+    <div class="stack">
+        {{-- Modes de paiement --}}
+        <article class="card">
+            <div class="card-head">
+                <div>
+                    <h2>Modes de paiement</h2>
+                    <span class="sub">Nombre de paiements aujourd'hui</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <ul class="mode-list" id="modeList">
+                    @foreach($modes as $m)
+                        @php $c = $modeCounts[$m['key']]; $pct = $modeTotal ? round($c / $modeTotal * 100) : 0; @endphp
+                        <li data-key="{{ $m['key'] }}">
+                            <span class="name"><i style="background: {{ $m['color'] }}"></i>{{ $m['label'] }}</span>
+                            <span class="bar"><span style="width: {{ $pct }}%; background: {{ $m['color'] }}"></span></span>
+                            <span class="val num"><span data-count>{{ $c }}</span> <small data-pct>{{ $pct }} %</small></span>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        </article>
+
+        {{-- Évolution --}}
+        <article class="card">
+            <div class="card-head">
+                <div>
+                    <h2>Encaissements</h2>
+                    <span class="sub">Évolution récente, en HTG</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div style="position: relative; height: 200px"><canvas id="salesChart"></canvas></div>
+            </div>
+        </article>
     </div>
-
-    <div class="table-card">
-        <div class="card-header"><h3><i class="fa-solid fa-wallet"></i> Répartition des paiements</h3></div>
-        <div class="payment-summary">
-            <div class="payment-item"><div class="left">💵 Espèces</div><strong>{{ $cashCount ?? 0 }}</strong></div>
-            <div class="payment-item"><div class="left">💳 Carte bancaire</div><strong>{{ $cardCount ?? 0 }}</strong></div>
-            <div class="payment-item"><div class="left">📱 MonCash</div><strong>{{ $moncashCount ?? 0 }}</strong></div>
-            <div class="payment-item"><div class="left">👛 NatCash</div><strong>{{ $natcashCount ?? 0 }}</strong></div>
-            <div class="payment-item"><div class="left">🏦 Virement</div><strong>{{ $virementCount ?? 0 }}</strong></div>
-        </div>
-    </div>
-</div>
-
-<div class="caisse-footer">
-    <div><i class="fa-solid fa-shield-halved"></i> Système de caisse sécurisé</div>
-    <div><i class="fa-solid fa-clock"></i> Mise à jour automatique</div>
-    <div>Version Resto Kay-Y v1.0</div>
-</div>
-
-<div id="toastContainer"></div>
+</section>
 
 @endsection
+
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-/* =========================================
-   DASHBOARD TEMPS RÉEL — KAY-Y CAISSE
-   ========================================= */
+(function () {
+    const API_URL      = @json(route('caisse.api.dashboard'));
+    const ENCAISSER    = @json(url('/caisse/encaisser'));
+    const MODE_COLORS  = @json($modeColor);
+    const css = getComputedStyle(document.documentElement);
+    const v = (n) => css.getPropertyValue(n).trim();
 
-let salesChart, paymentChart, ordersChart;
-let lastCommandeIds = new Set();
-let isRefreshing = false;
+    const money = (n) => Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const pad = (n) => String(n).padStart(5, '0');
+    const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+    const td = (child, cls) => { const c = el('td', cls); if (child instanceof Node) c.append(child); else c.textContent = child; return c; };
+    const icons = () => window.lucide && lucide.createIcons();
+    // Accepte "14:32", "10/10/2026 14:32" ou une date ISO
+    const hhmm = (x) => {
+        const s = String(x ?? '');
+        if (/\d{4}-\d{2}-\d{2}T/.test(s) && Number.isFinite(Date.parse(s))) {
+            return new Date(s).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        }
+        const m = s.match(/(\d{1,2}):(\d{2})/);
+        return m ? m[1].padStart(2, '0') + ':' + m[2] : '';
+    };
+    const toTs = (x) => { const t = Date.parse(x); return Number.isFinite(t) && /\d{4}-\d{2}-\d{2}/.test(String(x)) ? t / 1000 : null; };
 
-document.addEventListener('DOMContentLoaded', function () {
-    initCharts();
-    startPolling();
-    startClock();
-    
-    // Premye chajman done
-    refreshDashboard();
-});
-
-/* ====== GRAPHIQUES ====== */
-function initCharts(){
-    const salesCtx = document.getElementById('salesChart');
-    if(salesCtx){
-        salesChart = new Chart(salesCtx, {
-            type: 'line',
-            data: {
-                labels: @json($salesLabels ?? []),
-                datasets: [{
-                    label: "Chiffre d'affaires",
-                    data: @json($salesData ?? []),
-                    borderColor: '#B87333',
-                    backgroundColor: 'rgba(184, 115, 51, 0.15)',
-                    borderWidth: 3,
-                    pointRadius: 5,
-                    pointHoverRadius: 7,
-                    pointBackgroundColor: '#FFF',
-                    pointBorderColor: '#B87333',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true, grid: { color: 'rgba(44,24,16,.05)' }, ticks: { font: { family: 'IBM Plex Mono' } } },
-                    x: { grid: { display: false }, ticks: { font: { family: 'Inter' } } }
-                }
-            }
-        });
-    }
-
-    const paymentCtx = document.getElementById('paymentChart');
-    if(paymentCtx){
-        paymentChart = new Chart(paymentCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Espèces', 'Carte', 'MonCash', 'NatCash'],
-                datasets: [{
-                    data: [{{ $cashPercent ?? 0 }}, {{ $cardPercent ?? 0 }}, {{ $moncashPercent ?? 0 }}, {{ $natcashPercent ?? 0 }}],
-                    backgroundColor: ['#4A7C59', '#B87333', '#E25822', '#6F4E37'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { font: { family: 'Inter' }, padding: 20 } }
-                }
-            }
-        });
-    }
-
-    const ordersCtx = document.getElementById('ordersChart');
-    if(ordersCtx){
-        ordersChart = new Chart(ordersCtx, {
+    /* ---------- Graphique ---------- */
+    const canvas = document.getElementById('salesChart');
+    if (canvas && window.Chart) {
+        Chart.defaults.font.family = v('--font');
+        Chart.defaults.color = v('--text-3');
+        new Chart(canvas, {
             type: 'bar',
             data: {
-                labels: @json($orderLabels ?? []),
-                datasets: [{
-                    label: 'Commandes',
-                    data: @json($orderData ?? []),
-                    backgroundColor: '#B87333',
-                    borderRadius: 8,
-                    barThickness: 24
-                }]
+                labels: @json($salesLabels ?? []),
+                datasets: [{ data: @json($salesData ?? []), backgroundColor: v('--brand'), borderRadius: 4, maxBarThickness: 28 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { label: (c) => money(c.parsed.y) + ' HTG' } } },
                 scales: {
-                    y: { beginAtZero: true, grid: { color: 'rgba(44,24,16,.05)' } },
-                    x: { grid: { display: false } }
+                    x: { grid: { display: false }, border: { display: false } },
+                    y: { beginAtZero: true, border: { display: false }, grid: { color: v('--border') }, ticks: { maxTicksLimit: 4, callback: (n) => n >= 1000 ? (n / 1000) + 'k' : n } }
                 }
             }
         });
     }
-}
 
-/* ====== POLLING ====== */
-function startPolling(){
-    // Chak 10 segond
-    setInterval(refreshDashboard, 10000);
-}
-
-function startClock(){
-    const clockEl = document.getElementById('liveClock');
-    if(!clockEl) return;
-    setInterval(() => {
-        const now = new Date();
-        clockEl.innerHTML = now.toLocaleDateString('fr-FR', {weekday:'long', day:'2-digit', month:'long'}) + 
-                           "<br><b>" + now.toLocaleTimeString('fr-FR') + "</b>";
-    }, 1000);
-}
-
-/* ====== REFRESH PRINCIPAL ====== */
-async function refreshDashboard(){
-    if(isRefreshing) return;
-    isRefreshing = true;
-
-    try {
-        const res = await fetch("{{ route('caisse.api.dashboard') }}", {
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    /* ---------- Temps d'attente des commandes prêtes ---------- */
+    function tickWaits() {
+        const now = Date.now() / 1000;
+        document.querySelectorAll('[data-since]').forEach(s => {
+            const min = Math.max(0, Math.floor((now - Number(s.dataset.since)) / 60));
+            s.textContent = min < 1 ? "à l'instant" : min + ' min';
+            s.classList.toggle('long', min >= 15);
         });
-        if(!res.ok) throw new Error('Erè sèvè');
-        const data = await res.json();
-
-        updateStats(data.stats);
-        updateCommandesTable(data.commandesPretes);
-        updatePaiementsTable(data.derniersPaiements);
-        updateRepatisyon(data.repatisyon);
-        
-        // Joune bouton actualisation
-        const footerVersion = document.querySelector('.caisse-footer div:last-child');
-        if(footerVersion) footerVersion.innerHTML = '<i class="fa-solid fa-rotate"></i> Dènye mizajou: ' + data.timestamp;
-
-    } catch(e) {
-        console.error('Polling error:', e);
-    } finally {
-        isRefreshing = false;
     }
-}
+    tickWaits(); setInterval(tickWaits, 30000);
 
-/* ====== MIZAJOU STATS ====== */
-function updateStats(stats){
-    animateValue('caCounter', parseFloat(document.getElementById('caCounter')?.innerText.replace(/\s/g,'').replace(',','.') || 0), parseFloat(stats.chiffre), 1000, true);
-    animateValue('readyCounter', parseInt(document.getElementById('readyCounter')?.innerText || 0), stats.pretes, 800);
-    
-    // Attente ak peman yo pa gen ID inik nan HTML ou a, ajoute yo si ou vle
-    // Sinon nou ka jis mete ajou si eleman yo egziste
-    const attenteEl = document.querySelector('.stat-card.attente h2');
-    if(attenteEl) animateValueDirect(attenteEl, parseInt(attenteEl.innerText||0), stats.attente, 800);
-    
-    const payeesEl = document.querySelector('.stat-card.paiement h2');
-    if(payeesEl) animateValueDirect(payeesEl, parseInt(payeesEl.innerText||0), stats.payees, 800);
-}
+    /* ---------- Rafraîchissement ---------- */
+    // Commandes déjà affichées au chargement : pas de son pour elles
+    const known = new Set([...document.querySelectorAll('#readyRows tr[data-id]')].map(tr => Number(tr.dataset.id)));
 
-function animateValue(id, start, end, duration, isFloat=false){
-    const el = document.getElementById(id);
-    if(!el) return;
-    const range = end - start;
-    if(range === 0) return;
-    const startTime = performance.now();
-    
-    function step(now){
-        const progress = Math.min((now - startTime) / duration, 1);
-        const val = start + (range * progress);
-        el.innerText = isFloat ? val.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}) : Math.floor(val).toLocaleString('fr-FR');
-        if(progress < 1) requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-}
-
-function animateValueDirect(el, start, end, duration){
-    const range = end - start;
-    if(range === 0) return;
-    const startTime = performance.now();
-    function step(now){
-        const progress = Math.min((now - startTime) / duration, 1);
-        el.innerText = Math.floor(start + (range * progress)).toLocaleString('fr-FR');
-        if(progress < 1) requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-}
-
-/* ====== MIZAJOU TAB KÒMAND PRET ====== */
-function updateCommandesTable(commandes){
-    const tbody = document.querySelector('.premium-table tbody');
-    if(!tbody) return;
-    
-    let newArrivals = [];
-    
-    // Tcheke nouvo kòmand
-    commandes.forEach(cmd => {
-        if(!lastCommandeIds.has(cmd.id)){
-            lastCommandeIds.add(cmd.id);
-            newArrivals.push(cmd);
+    function renderReady(list) {
+        const body = document.getElementById('readyRows');
+        body.innerHTML = '';
+        if (!list.length) {
+            const tr = el('tr', 'empty-row');
+            const c = td('Aucune commande à encaisser pour le moment.', 'empty'); c.colSpan = 5;
+            tr.append(c); body.append(tr);
+            return [];
         }
-    });
-    
-    if(commandes.length === 0){
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="empty">
-                    <i class="fa-solid fa-circle-check" style="font-size:50px;color:var(--success);margin-bottom:15px;display:block;"></i>
-                    Aucune commande en attente d'encaissement.
-                </td>
-            </tr>`;
-        document.querySelector('.count-badge')?.setAttribute('style', 'display:none;');
-        return;
-    }
-    
-    // Montre badge kantite a
-    const badge = document.querySelector('.count-badge');
-    if(badge){
-        badge.style.display = 'inline-block';
-        badge.innerText = commandes.length + ' commande(s)';
-    }
-    
-    let html = '';
-    commandes.forEach(cmd => {
-        html += `
-        <tr data-id="${cmd.id}">
-            <td><strong>#${cmd.id}</strong></td>
-            <td><span class="table-number">🍽️ Table ${cmd.restaurant_table_id}</span></td>
-            <td><strong class="amount">${cmd.total} HTG</strong></td>
-            <td><span class="badge-ready"><i class="fa-solid fa-circle-check"></i> Prête</span></td>
-            <td>${cmd.created_at}</td>
-            <td><span class="badge-mode">À définir</span></td>
-            <td>
-                <a href="/caisse/encaisser/${cmd.id}" class="btn-pay">
-                    <i class="fa-solid fa-cash-register"></i> Encaisser
-                </a>
-            </td>
-        </tr>`;
-    });
-    
-    tbody.innerHTML = html;
-    
-    // Notifikasyon pou nouvo kòmand
-    newArrivals.forEach(cmd => {
-        showToast(`🍽️ Nouvo kòmand #${cmd.id} — Table ${cmd.restaurant_table_id}`, 'success');
-        playNotifSound();
-    });
-}
+        const fresh = [];
+        list.forEach(c => {
+            const tr = el('tr', 'ready-row'); tr.dataset.id = c.id;
+            const tableNum = (c.table && c.table.numero) ? c.table.numero : c.restaurant_table_id;
 
-/* ====== MIZAJOU TAB PEMAN ====== */
-function updatePaiementsTable(paiements){
-    const tbody = document.querySelectorAll('.premium-table')[1]?.querySelector('tbody');
-    if(!tbody) return;
-    
-    if(paiements.length === 0){
-        tbody.innerHTML = '<tr><td colspan="5" class="empty">Aucun paiement enregistré.</td></tr>';
-        return;
-    }
-    
-    let html = '';
-    const modeBadges = {
-        'Espèces': ['badge-success', '💵 Espèces'],
-        'Carte': ['badge-primary', '💳 Carte'],
-        'MonCash': ['badge-warning', '📱 MonCash'],
-        'NatCash': ['badge-purple', '👛 NatCash']
-    };
-    
-    paiements.forEach(p => {
-        const badge = modeBadges[p.mode_paiement] || ['badge', p.mode_paiement];
-        html += `
-        <tr>
-            <td><strong>FAC-${String(p.id).padStart(5,'0')}</strong></td>
-            <td>#${p.commande_id}</td>
-            <td><strong class="amount">${p.montant} HTG</strong></td>
-            <td><span class="badge ${badge[0]}">${badge[1]}</span></td>
-            <td>${p.created_at}</td>
-        </tr>`;
-    });
-    tbody.innerHTML = html;
-}
+            const pill = el('span', 'table-pill'); pill.innerHTML = '<i data-lucide="armchair"></i>'; pill.append(String(tableNum));
+            const since = el('span', 'wait num', hhmm(c.created_at));
+            const ts = toTs(c.created_at);
+            if (ts) since.dataset.since = ts;
+            const amount = el('span'); amount.append(el('strong', null, money(c.total)), ' ', el('span', 'muted', 'HTG'));
+            const btn = el('a', 'btn btn-primary'); btn.href = ENCAISSER + '/' + c.id; btn.innerHTML = '<i data-lucide="wallet"></i>'; btn.append(' Encaisser');
 
-/* ====== MIZAJOU REPARTISYON ====== */
-function updateRepatisyon(data){
-    const items = document.querySelectorAll('.payment-item strong');
-    const labels = ['cashCount', 'cardCount', 'moncashCount', 'natcashCount', 'virementCount'];
-    const map = ['cashCount','cardCount','moncashCount','natcashCount','virementCount'];
-    
-    items.forEach((el, i) => {
-        if(map[i] && data[map[i]] !== undefined){
-            const val = parseInt(el.innerText) || 0;
-            if(val !== data[map[i]]){
-                animateValueDirect(el, val, data[map[i]], 600);
-            }
+            tr.append(td(pill), td('#' + c.id, 'num'), td(since), td(amount, 'right num'), td(btn, 'right'));
+            body.append(tr);
+
+            if (!known.has(Number(c.id))) { known.add(Number(c.id)); fresh.push({ id: c.id, table: tableNum }); }
+        });
+        return fresh;
+    }
+
+    function renderPayments(list) {
+        const body = document.getElementById('payRows');
+        body.innerHTML = '';
+        if (!list.length) {
+            const tr = el('tr'); const c = td("Aucun paiement aujourd'hui.", 'empty'); c.colSpan = 5; tr.append(c); body.append(tr);
+            return;
         }
-    });
-}
-
-/* ====== TOAST ====== */
-function showToast(message, type='success'){
-    const container = document.getElementById('toastContainer');
-    if(!container) return;
-    let toast = document.createElement('div');
-    toast.className = 'toast ' + type;
-    toast.innerHTML = '<i class="fa-solid fa-bell"></i> ' + message;
-    container.appendChild(toast);
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100px)';
-        setTimeout(() => toast.remove(), 400);
-    }, 4000);
-}
-
-/* ====== SON NOTIFIKASYON ====== */
-function playNotifSound(){
-    const audio = document.getElementById('notifSound');
-    if(audio){
-        audio.currentTime = 0;
-        audio.play().catch(e => {}); // Ignorer erè autoplay
+        list.forEach(p => {
+            const mode = el('span', 'mode-badge', p.mode_paiement);
+            mode.style.setProperty('--c', MODE_COLORS[p.mode_paiement] || v('--text-3'));
+            const tr = el('tr');
+            tr.append(
+                td(el('strong', null, 'FAC-' + pad(p.id)), 'num'),
+                td('#' + p.commande_id, 'num muted'),
+                td(mode),
+                td(hhmm(p.created_at), 'num muted'),
+                td(el('strong', null, money(p.montant)), 'right num')
+            );
+            body.append(tr);
+        });
     }
-}
 
-/* ====== SESYON FLASH ====== */
-@if(session('success')) showToast("{{ session('success') }}"); @endif
-@if(session('error')) showToast("{{ session('error') }}", 'error'); @endif
+    function renderModes(rep) {
+        if (!rep) return;
+        const items = [...document.querySelectorAll('#modeList li')];
+        const total = items.reduce((s, li) => s + Number(rep[li.dataset.key] || 0), 0);
+        items.forEach(li => {
+            const n = Number(rep[li.dataset.key] || 0);
+            const pct = total ? Math.round(n / total * 100) : 0;
+            li.querySelector('[data-count]').textContent = n;
+            li.querySelector('[data-pct]').textContent = pct + ' %';
+            li.querySelector('.bar span').style.width = pct + '%';
+        });
+    }
 
-/* ====== INISYALIZE SET KÒMAND KI TE LA ====== */
-document.querySelectorAll('.premium-table tbody tr[data-id]').forEach(tr => {
-    lastCommandeIds.add(parseInt(tr.dataset.id));
-});
+    async function refresh() {
+        try {
+            const res = await fetch(API_URL, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!res.ok) return;
+            const data = await res.json();
+            const s = data.stats || {};
 
+            document.getElementById('kCa').textContent      = money(s.chiffre);
+            document.getElementById('kPretes').textContent  = s.pretes ?? 0;
+            document.getElementById('kAttente').textContent = s.attente ?? 0;
+            document.getElementById('kPayees').textContent  = s.payees ?? 0;
+            document.getElementById('kTicket').textContent  = s.payees ? Math.round(s.chiffre / s.payees).toLocaleString('fr-FR') : '0';
+
+            const fresh = renderReady(data.commandesPretes || []);
+            renderPayments(data.derniersPaiements || []);
+            renderModes(data.repatisyon);
+            icons(); tickWaits();
+
+            fresh.forEach(c => caisseToast('Commande #' + c.id + ' prête · table ' + c.table));
+            if (fresh.length) caisseDing();
+
+            document.getElementById('updatedAt').textContent = 'mis à jour à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        } catch (e) {
+            console.error('Actualisation impossible', e);
+        }
+    }
+
+    setInterval(refresh, 10000);
+})();
 </script>
 @endpush
