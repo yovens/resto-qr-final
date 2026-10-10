@@ -1,385 +1,130 @@
-@extends('admin.layouts.app')
+@extends('admin.layouts.layout')
+
+@section('title', 'Modifier · '.$employe->prenom.' '.$employe->nom)
 
 @section('content')
 
-<style>
-
-.page-card{
-    max-width:950px;
-    margin:40px auto;
-    background:#fff;
-    border-radius:25px;
-    overflow:hidden;
-    box-shadow:0 15px 45px rgba(0,0,0,.08);
-}
-
-.page-header{
-    background:linear-gradient(135deg,#2563eb,#1d4ed8);
-    color:white;
-    padding:35px;
-}
-
-.page-header h1{
-    margin:0;
-    font-size:30px;
-}
-
-.page-header p{
-    margin-top:8px;
-    opacity:.9;
-}
-
-.form-body{
-    padding:35px;
-}
-
-.alert-danger{
-    background:#fee2e2;
-    color:#b91c1c;
-    padding:18px;
-    border-radius:12px;
-    margin-bottom:25px;
-}
-
-.alert-danger ul{
-    margin:0;
-    padding-left:18px;
-}
-
-.form-grid{
-    display:grid;
-    grid-template-columns:repeat(2,1fr);
-    gap:20px;
-}
-
-.form-group{
-    display:flex;
-    flex-direction:column;
-}
-
-.form-group.full{
-    grid-column:1/-1;
-}
-
-label{
-    font-weight:bold;
-    color:#374151;
-    margin-bottom:8px;
-}
-
-input,
-select{
-    height:50px;
-    border:1px solid #d1d5db;
-    border-radius:12px;
-    padding:0 15px;
-    font-size:15px;
-    transition:.3s;
-    background:#fafafa;
-}
-
-input:focus,
-select:focus{
-    outline:none;
-    border-color:#2563eb;
-    box-shadow:0 0 0 4px rgba(37,99,235,.15);
-    background:white;
-}
-
-input[type=file]{
-    padding:12px;
-    height:auto;
-}
-
-.preview-box{
-    display:flex;
-    justify-content:center;
-    margin-top:20px;
-}
-
-.preview-box img{
-    width:140px;
-    height:140px;
-    object-fit:cover;
-    border-radius:50%;
-    border:5px solid #e5e7eb;
-}
-
-.actions{
-    margin-top:35px;
-    display:flex;
-    justify-content:flex-end;
-    gap:15px;
-}
-
-.btn{
-    padding:14px 28px;
-    border:none;
-    border-radius:12px;
-    text-decoration:none;
-    cursor:pointer;
-    font-weight:bold;
-    transition:.3s;
-}
-
-.btn-secondary{
-    background:#e5e7eb;
-    color:#374151;
-}
-
-.btn-secondary:hover{
-    background:#d1d5db;
-}
-
-.btn-primary{
-    background:linear-gradient(135deg,#2563eb,#1d4ed8);
-    color:white;
-}
-
-.btn-primary:hover{
-    transform:translateY(-2px);
-    box-shadow:0 10px 25px rgba(37,99,235,.3);
-}
-
-@media(max-width:768px){
-
-.form-grid{
-grid-template-columns:1fr;
-}
-
-.page-card{
-margin:15px;
-}
-
-.actions{
-flex-direction:column;
-}
-
-}
-
-</style>
-
-<div class="page-card">
-
-<div class="page-header">
-
-<h1>✏ Modifier un employé</h1>
-
-<p>
-Mettre à jour les informations de l'employé.
-</p>
-
+<a href="/admin/employes/{{ $employe->id }}" class="back-link"><i data-lucide="arrow-left"></i> {{ $employe->prenom }} {{ $employe->nom }}</a>
+<div class="page-head">
+    <div>
+        <h1>Modifier l'employé</h1>
+        <p>{{ $employe->prenom }} {{ $employe->nom }}</p>
+    </div>
 </div>
-
-<div class="form-body">
 
 @if($errors->any())
-
-<div class="alert-danger">
-
-<strong>Des erreurs ont été détectées :</strong>
-
-<ul>
-
-@foreach($errors->all() as $error)
-
-<li>{{ $error }}</li>
-
-@endforeach
-
-</ul>
-
-</div>
-
+    <div class="errors">Certains champs sont à corriger avant d'enregistrer.</div>
 @endif
 
-<form
-action="/admin/employes/{{ $employe->id }}"
-method="POST"
-enctype="multipart/form-data">
+<form method="POST" action="{{ url('/admin/employes/'.$employe->id) }}" enctype="multipart/form-data">
+    @csrf
+    @method('PUT')
+    <div class="form-layout">
+        <div class="card">
+            <div class="form-section">
+                <h3>Identité</h3>
+                <p class="hint">Nom tel qu'il apparaît sur la fiche de paie.</p>
 
-@csrf
-@method('PUT')
+                <div class="field-row">
+                    <div class="field">
+                        <label for="prenom">Prénom</label>
+                        <input class="input @error('prenom') is-invalid @enderror" id="prenom" name="prenom" type="text"
+                               value="{{ old('prenom', $employe->prenom ?? '') }}" required autofocus>
+                        @error('prenom')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="field">
+                        <label for="nom">Nom</label>
+                        <input class="input @error('nom') is-invalid @enderror" id="nom" name="nom" type="text"
+                               value="{{ old('nom', $employe->nom ?? '') }}" required>
+                        @error('nom')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+                </div>
 
-<div class="form-grid">
+                <div class="field-row">
+                    <div class="field">
+                        <label for="telephone">Téléphone</label>
+                        <input class="input num @error('telephone') is-invalid @enderror" id="telephone" name="telephone" type="tel"
+                               value="{{ old('telephone', $employe->telephone ?? '') }}" placeholder="+509 3X XX XXXX" required>
+                        @error('telephone')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="field">
+                        <label for="email">E-mail</label>
+                        <input class="input @error('email') is-invalid @enderror" id="email" name="email" type="email"
+                               value="{{ old('email', $employe->email ?? '') }}" required>
+                        @error('email')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+            </div>
 
-<div class="form-group">
+            <div class="form-section">
+                <h3>Poste</h3>
+                <p class="hint">Fonction et rémunération mensuelle.</p>
 
-<label>Nom</label>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="role">Fonction</label>
+                        @php $role = old('role', $employe->role ?? ''); @endphp
+                        <select class="select @error('role') is-invalid @enderror" id="role" name="role" required>
+                            <option value="" disabled @selected($role === '')>Choisir…</option>
+                            <option value="caissiere" @selected($role === 'caissiere')>Caissière</option>
+                            <option value="serveur"   @selected($role === 'serveur')>Serveur</option>
+                            <option value="serveuse"  @selected($role === 'serveuse')>Serveuse</option>
+                            <option value="cuisine"   @selected(in_array($role, ['cuisine', 'cuisinier']))>Cuisinier</option>
+                            <option value="autre"     @selected($role === 'autre')>Autre</option>
+                        </select>
+                        @error('role')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="field">
+                        <label for="salaire">Salaire mensuel</label>
+                        <div class="input-affix">
+                            <input class="input num @error('salaire') is-invalid @enderror" id="salaire" name="salaire" type="number"
+                                   step="0.01" min="0" inputmode="decimal" value="{{ old('salaire', $employe->salaire ?? '') }}" placeholder="0" required>
+                            <span>HTG</span>
+                        </div>
+                        @error('salaire')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+            </div>
 
-<input
-type="text"
-name="nom"
-value="{{ old('nom',$employe->nom) }}"
-required>
+            <div class="form-footer">
+                <a href="{{ url('/admin/employes/'.$employe->id) }}" class="btn">Annuler</a>
+                <button type="submit" class="btn btn-primary"><i data-lucide="check"></i> Enregistrer</button>
+            </div>
+        </div>
 
-</div>
+        <div class="card form-section">
+            <h3>Photo</h3>
+            <p class="hint">Facultatif. Une photo de face, format carré.</p>
 
-<div class="form-group">
-
-<label>Prénom</label>
-
-<input
-type="text"
-name="prenom"
-value="{{ old('prenom',$employe->prenom) }}"
-required>
-
-</div>
-
-<div class="form-group">
-
-<label>Adresse e-mail</label>
-
-<input
-type="email"
-name="email"
-value="{{ old('email',$employe->email) }}"
-required>
-
-</div>
-
-<div class="form-group">
-
-<label>Téléphone</label>
-
-<input
-type="text"
-name="telephone"
-value="{{ old('telephone',$employe->telephone) }}"
-required>
-
-</div>
-
-<div class="form-group">
-
-<label>Fonction</label>
-
-<select name="role">
-
-<option value="caissiere"
-{{ $employe->role=='caissiere'?'selected':'' }}>
-Caissière
-</option>
-
-<option value="serveur"
-{{ $employe->role=='serveur'?'selected':'' }}>
-Serveur
-</option>
-
-<option value="serveuse"
-{{ $employe->role=='serveuse'?'selected':'' }}>
-Serveuse
-</option>
-
-<option value="cuisine"
-{{ $employe->role=='cuisine'?'selected':'' }}>
-Cuisinier
-</option>
-
-<option value="autre"
-{{ $employe->role=='autre'?'selected':'' }}>
-Autre
-</option>
-
-</select>
-
-</div>
-
-<div class="form-group">
-
-<label>Salaire mensuel (HTG)</label>
-
-<input
-type="number"
-step="0.01"
-name="salaire"
-value="{{ old('salaire',$employe->salaire) }}"
-required>
-
-</div>
-
-<div class="form-group full">
-
-<label>Photo</label>
-
-<input
-type="file"
-id="photo"
-name="photo"
-accept="image/*">
-
-<div class="preview-box">
-
-@if($employe->photo)
-
-<img src="{{ asset($employe->photo) }}">
-@else
-
-<img
-id="preview"
-style="display:none;">
-
-@endif
-
-</div>
-
-</div>
-
-</div>
-
-<div class="actions">
-
-<a
-href="/admin/employes"
-class="btn btn-secondary">
-
-Retour
-
-</a>
-
-<button
-type="submit"
-class="btn btn-primary">
-
-💾 Enregistrer les modifications
-
-</button>
-
-</div>
-
+            <label class="dropzone {{ $employe->photo ? 'has-image' : '' }}" id="dropzone" style="aspect-ratio: 1 / 1; max-width: 240px; margin: 0 auto; border-radius: 50%">
+                <input type="file" name="photo" accept="image/*" id="photoInput">
+                <img id="photoPreview" src="{{ $employe->photo ? asset($employe->photo) : '' }}" alt="" @unless($employe->photo) hidden @endunless>
+                <span class="dropzone-empty">
+                    <i data-lucide="camera"></i>
+                    Ajouter une photo
+                </span>
+            </label>
+            @error('photo')<div class="field-error" style="text-align:center">{{ $message }}</div>@enderror
+            @if($employe->photo)<p class="hint" style="margin:10px 0 0;text-align:center">Choisissez une nouvelle photo pour remplacer l'actuelle.</p>@endif
+        </div>
+    </div>
 </form>
 
-</div>
-
-</div>
-
-<script>
-
-document
-.getElementById("photo")
-.addEventListener("change",function(e){
-
-const file=e.target.files[0];
-
-if(!file)return;
-
-const reader=new FileReader();
-
-reader.onload=function(ev){
-
-const img=document.getElementById("preview");
-
-img.src=ev.target.result;
-
-img.style.display="block";
-
-}
-
-reader.readAsDataURL(file);
-
-});
-
-</script>
-
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const zone = document.getElementById('dropzone');
+    const input = document.getElementById('photoInput');
+    const preview = document.getElementById('photoPreview');
+    input.addEventListener('change', () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        preview.src = URL.createObjectURL(file);
+        preview.hidden = false;
+        zone.classList.add('has-image');
+    });
+})();
+</script>
+@endpush

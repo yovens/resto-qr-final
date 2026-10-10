@@ -1,89 +1,217 @@
-@extends('admin.layouts.app')
+@extends('admin.layouts.layout')
+
+@section('title', 'Ventes')
+
+@php
+    $fmt = fn ($n) => number_format((float) $n, 0, ',', ' ');
+
+    $moisNoms = [1 => 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    $moisCourts = [1 => 'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+
+    $mois  = (int) request('month');
+    $annee = (int) request('year');
+
+    $periode = $mois && $annee ? $moisNoms[$mois].' '.$annee
+             : ($mois ? $moisNoms[$mois].' (toutes années)'
+             : ($annee ? 'Année '.$annee : 'Depuis le début'));
+
+    $isPaginated = $commandes instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator;
+    $nbCommandes = $isPaginated ? $commandes->total() : $commandes->count();
+    $ticket      = $nbCommandes > 0 ? $total / $nbCommandes : 0;
+
+    // Ventes par mois sur 12 colonnes
+    $parMoisMap = collect($parMois)->mapWithKeys(fn ($m) => [(int) $m->mois => (float) $m->total]);
+    $maxMois    = max($parMoisMap->max() ?? 0, 1);
+    $meilleur   = $parMoisMap->isNotEmpty() ? $parMoisMap->sortDesc()->keys()->first() : null;
+
+    $statusMap = [
+        'nouvelle'       => ['new',    'Nouvelle'],
+        'acceptee'       => ['prep',   'Acceptée'],
+        'en_preparation' => ['prep',   'En préparation'],
+        'prete'          => ['ready',  'Prête'],
+        'servie'         => ['served', 'Servie'],
+        'payee'          => ['ready',  'Payée'],
+    ];
+@endphp
 
 @section('content')
 
-<style>
-    .stat-card { background: #27ae60; color: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 20px rgba(39, 174, 96, 0.2); margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; }
-    .filter-bar { background: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .data-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
-    .data-table th { padding: 15px; color: #7f8c8d; text-transform: uppercase; font-size: 0.8rem; }
-    .data-table td { background: white; padding: 15px; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
-    .data-table tr td:first-child { border-left: 1px solid #eee; border-radius: 10px 0 0 10px; }
-    .data-table tr td:last-child { border-right: 1px solid #eee; border-radius: 0 10px 10px 0; }
-    .chart-box { background: white; padding: 20px; border-radius: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
-</style>
-
-<h1>📊 Historique des ventes</h1>
-
-<div class="stat-card">
-    <div style="color: #333333 !important;">
-    <h3 style="margin:0; opacity: 0.8; color: #333333 !important;">
-        Chiffre d'affaires total
-    </h3>
-    <h1 style="margin:5px 0 0 0; color: #000000 !important;">
-        {{ number_format($total, 2) }} HTG
-    </h1>
-</div>
-    <div style="font-size: 3rem; opacity: 0.2;">
-        <i data-lucide="trending-up"></i>
+<div class="page-head">
+    <div>
+        <h1>Ventes</h1>
+        <p>{{ $periode }}</p>
     </div>
+
+    <form method="GET" class="filters">
+        <select name="month" class="select" onchange="this.form.submit()">
+            <option value="">Tous les mois</option>
+            @foreach($moisNoms as $i => $nom)
+                <option value="{{ $i }}" @selected($mois === $i)>{{ $nom }}</option>
+            @endforeach
+        </select>
+        <select name="year" class="select" onchange="this.form.submit()">
+            <option value="">Toutes les années</option>
+            @for($y = (int) date('Y'); $y >= 2023; $y--)
+                <option value="{{ $y }}" @selected($annee === $y)>{{ $y }}</option>
+            @endfor
+        </select>
+        @if($mois || $annee)
+            <a href="{{ url()->current() }}" class="btn" title="Effacer les filtres"><i data-lucide="x"></i></a>
+        @endif
+        <noscript><button type="submit" class="btn">Filtrer</button></noscript>
+    </form>
 </div>
 
-<script>
-  lucide.createIcons();
-</script>
-
-<form method="GET" class="filter-bar">
-    <select name="month" style="padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
-        <option value="">📅 Tous les mois</option>
-        @for($i=1; $i<=12; $i++)
-            <option value="{{ $i }}" {{ request('month') == $i ? 'selected' : '' }}>{{ $i }}</option>
-        @endfor
-    </select>
-
-    <select name="year" style="padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
-        <option value="">📆 Toutes les années</option>
-        @for($i=date('Y'); $i>=2023; $i--)
-            <option value="{{ $i }}" {{ request('year') == $i ? 'selected' : '' }}>{{ $i }}</option>
-        @endfor
-    </select>
-
-    <button type="submit" style="padding: 10px 20px; background: #2980b9; color: white; border: none; border-radius: 8px; cursor: pointer;">Filtrer</button>
-</form>
-
-<table class="data-table">
-    <tr>
-        <th>ID</th><th>Date</th><th>Table</th><th>Total</th><th>Statut</th><th>Détails</th>
-    </tr>
-    @foreach($commandes as $c)
-    <tr>
-        <td><strong>#{{ $c->id }}</strong></td>
-        <td>{{ $c->created_at->format('d/m/Y H:i') }}</td>
-        <td>Table {{ $c->table->numero ?? 'N/A' }}</td>
-        <td>{{ number_format($c->total, 2) }} HTG</td>
-        <td><span style="color: #27ae60; font-weight: bold;">{{ $c->statut }}</span></td>
-        <td>
-            <details style="cursor: pointer;">
-                <summary>Voir plats</summary>
-                <ul style="margin: 5px 0; padding-left: 20px;">
-                    @foreach($c->items as $item)
-                        <li>{{ $item->plat->nom ?? 'Plat' }} x {{ $item->quantite }}</li>
-                    @endforeach
-                </ul>
-            </details>
-        </td>
-    </tr>
-    @endforeach
-</table>
-
-<h2 style="margin-top:40px;">📊 Ventes par mois</h2>
-<div class="chart-box">
-    @foreach($parMois as $m)
-        <div style="background: #f8f9fe; padding: 15px; border-radius: 10px; text-align: center;">
-            <div style="color: #7f8c8d; font-size: 0.8rem;">Mois {{ $m->mois }}</div>
-            <div style="font-weight: bold; font-size: 1.1rem;">{{ number_format($m->total, 2) }} HTG</div>
+{{-- Indicateurs --}}
+<section class="kpis kpis-3">
+    <article class="card kpi">
+        <div class="kpi-top">
+            <span class="kpi-label">Chiffre d'affaires</span>
+            <span class="kpi-icon"><i data-lucide="banknote"></i></span>
         </div>
-    @endforeach
+        <div class="kpi-value num">{{ $fmt($total) }}<span class="unit">HTG</span></div>
+        <div class="kpi-foot"><span>{{ $periode }}</span></div>
+    </article>
+    <article class="card kpi">
+        <div class="kpi-top">
+            <span class="kpi-label">Commandes</span>
+            <span class="kpi-icon"><i data-lucide="receipt-text"></i></span>
+        </div>
+        <div class="kpi-value num">{{ $nbCommandes }}</div>
+        <div class="kpi-foot"><span>sur la période</span></div>
+    </article>
+    <article class="card kpi">
+        <div class="kpi-top">
+            <span class="kpi-label">Ticket moyen</span>
+            <span class="kpi-icon"><i data-lucide="calculator"></i></span>
+        </div>
+        <div class="kpi-value num">{{ $fmt($ticket) }}<span class="unit">HTG</span></div>
+        <div class="kpi-foot"><span>par commande</span></div>
+    </article>
+</section>
+
+{{-- Ventes par mois --}}
+<article class="card" style="margin-bottom: 16px">
+    <div class="card-head">
+        <div>
+            <h2>Ventes par mois</h2>
+            <span class="sub">
+                {{ $annee ? $annee : 'Toutes années confondues' }}
+                @if($meilleur) · meilleur mois : {{ $moisNoms[$meilleur] }} ({{ $fmt($parMoisMap[$meilleur]) }} HTG) @endif
+            </span>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="month-bars">
+            @for($i = 1; $i <= 12; $i++)
+                @php $v = $parMoisMap[$i] ?? 0; @endphp
+                <a href="?month={{ $i }}{{ $annee ? '&year='.$annee : '' }}"
+                   class="month-bar {{ $v > 0 ? 'has' : '' }} {{ $mois === $i ? 'current' : '' }}"
+                   title="{{ $moisNoms[$i] }} : {{ $fmt($v) }} HTG">
+                    <span class="v num">{{ $v >= 1000 ? round($v / 1000, 1).'k' : $fmt($v) }}</span>
+                    <span class="bar" style="height: {{ $v > 0 ? max(3, $v / $maxMois * 100) : 2 }}%"></span>
+                    <span class="m">{{ $moisCourts[$i] }}</span>
+                </a>
+            @endfor
+        </div>
+    </div>
+</article>
+
+{{-- Détail des commandes --}}
+<div class="card">
+    <div class="card-head" style="padding-bottom: 12px">
+        <div>
+            <h2>Commandes</h2>
+            <span class="sub">{{ $nbCommandes }} {{ $nbCommandes > 1 ? 'commandes' : 'commande' }}</span>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Commande</th>
+                    <th>Date</th>
+                    <th>Table</th>
+                    <th>Statut</th>
+                    <th class="right">Total</th>
+                    <th class="right">Plats</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($commandes as $c)
+                    @php [$cls, $label] = $statusMap[$c->statut] ?? ['served', ucfirst(str_replace('_', ' ', $c->statut))]; @endphp
+                    <tr>
+                        <td><strong class="num">#{{ $c->id }}</strong></td>
+                        <td class="num">
+                            {{ $c->created_at->format('d/m/Y') }}
+                            <span class="muted">{{ $c->created_at->format('H:i') }}</span>
+                        </td>
+                        <td>Table {{ $c->table->numero ?? '—' }}</td>
+                        <td><span class="status {{ $cls }}">{{ $label }}</span></td>
+                        <td class="right num"><strong>{{ $fmt($c->total) }}</strong> <span class="muted">HTG</span></td>
+                        <td class="right">
+                            <button type="button" class="items-toggle" aria-expanded="false" data-target="items-{{ $c->id }}">
+                                {{ $c->items->sum('quantite') }} {{ $c->items->sum('quantite') > 1 ? 'articles' : 'article' }}
+                                <i data-lucide="chevron-down"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <tr class="items-row" id="items-{{ $c->id }}" hidden>
+                        <td colspan="6">
+                            <ul class="items-list">
+                                @foreach($c->items as $item)
+                                    <li><b>{{ $item->quantite }}×</b>{{ $item->plat->nom ?? 'Plat supprimé' }}</li>
+                                @endforeach
+                            </ul>
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="6" class="empty">Aucune vente sur cette période.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    {{-- Pagination (seulement si le contrôleur utilise paginate()) --}}
+    @if($isPaginated && $commandes->hasPages())
+        @php $commandes->appends(request()->only('month', 'year')); @endphp
+        <div class="pager">
+            <span>{{ $commandes->firstItem() }}–{{ $commandes->lastItem() }} sur {{ $commandes->total() }}</span>
+            <div class="pager-links">
+                @if($commandes->onFirstPage())
+                    <span class="disabled">‹</span>
+                @else
+                    <a href="{{ $commandes->previousPageUrl() }}">‹</a>
+                @endif
+                @foreach($commandes->getUrlRange(max(1, $commandes->currentPage() - 2), min($commandes->lastPage(), $commandes->currentPage() + 2)) as $page => $url)
+                    @if($page == $commandes->currentPage())
+                        <span class="current">{{ $page }}</span>
+                    @else
+                        <a href="{{ $url }}">{{ $page }}</a>
+                    @endif
+                @endforeach
+                @if($commandes->hasMorePages())
+                    <a href="{{ $commandes->nextPageUrl() }}">›</a>
+                @else
+                    <span class="disabled">›</span>
+                @endif
+            </div>
+        </div>
+    @endif
 </div>
 
 @endsection
+
+@push('scripts')
+<script>
+document.querySelectorAll('.items-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const row = document.getElementById(btn.dataset.target);
+        const open = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', String(!open));
+        row.hidden = open;
+    });
+});
+</script>
+@endpush

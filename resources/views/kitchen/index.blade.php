@@ -3,810 +3,526 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Cuisine LIVE - Gestion des Commandes</title>
-    @vite(['resources/js/app.js'])
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Cuisine · Resto Kay-Y</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+
     <style>
         :root {
-            --steel-950: #12161a;
-            --steel-900: #1b2126;
-            --steel-800: #262e34;
-            --steel-700: #333d45;
-            --paper: #f3ede0;
-            --paper-line: #ddd4bd;
-            --ink: #2a2620;
-            --ink-soft: #6b6558;
-            --new: #e8493f;
-            --prep: #f2a33d;
-            --ready: #3fae63;
-            --muted: #8b95a1;
+            --bg: #0b141a;
+            --col: #121e26;
+            --col-border: #1d2b34;
+            --bar: #0e1920;
+            --card: #ffffff;
+            --line: #e7ebee;
+            --text: #0f1d24;
+            --text-2: #52626b;
+            --text-3: #8696a0;
+            --on-dark: #e6edf1;
+            --on-dark-2: #8fa2ad;
+
+            --brand: #0f9b8e;
+            --new: #2f6fe4;
+            --prep: #e08a1e;
+            --ready: #16a34a;
+            --late: #dc3b3b;
+
+            --font: "Manrope", system-ui, sans-serif;
+            --mono: "JetBrains Mono", ui-monospace, monospace;
         }
 
         * { box-sizing: border-box; }
-
+        html, body { margin: 0; height: 100%; }
         body {
-            margin: 0;
-            font-family: 'Inter', sans-serif;
-            background:
-                repeating-linear-gradient(135deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 8px),
-                var(--steel-950);
-            color: #e7e6e2;
-            min-height: 100vh;
-            padding: 28px 28px 60px;
-        }
-
-        .pass-header {
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            border-bottom: 2px solid var(--steel-700);
-            padding-bottom: 18px;
-            margin-bottom: 28px;
-        }
-        .pass-header h1 {
-            font-family: 'Oswald', sans-serif;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            font-size: 1.9rem;
-            margin: 0;
-        }
-        .pass-header h1 span { color: var(--prep); }
-        .pass-clock {
-            font-family: 'Roboto Mono', monospace;
-            font-size: 1rem;
-            color: var(--muted);
-        }
-
-        .kitchen-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 22px;
-        }
-
-        /* --- Ticket card, styled like a printed kitchen chit --- */
-        .ticket {
-            background: var(--paper);
-            color: var(--ink);
-            border-radius: 4px;
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--on-dark);
             display: flex;
             flex-direction: column;
-            box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+            -webkit-font-smoothing: antialiased;
             overflow: hidden;
-            transition: box-shadow 0.2s ease;
         }
+        button { font: inherit; }
+        svg.lucide { width: 18px; height: 18px; stroke-width: 2; }
 
-        .ticket__perforation {
-            height: 10px;
-            background-image: radial-gradient(circle at 10px 5px, var(--steel-950) 3px, transparent 3.5px);
-            background-size: 20px 10px;
-            background-color: var(--paper);
+        /* ---------- Barre du haut ---------- */
+        .bar {
+            flex-shrink: 0;
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 20px;
+            background: var(--bar);
+            border-bottom: 1px solid var(--col-border);
         }
+        .bar-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; margin-right: 8px; }
+        .bar-brand .mark {
+            width: 32px; height: 32px; border-radius: 8px; background: var(--brand);
+            display: grid; place-items: center; font-size: 13px; color: #fff;
+        }
+        .bar-brand small { display: block; font-size: 11.5px; font-weight: 600; color: var(--on-dark-2); }
 
-        .ticket__band {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 16px;
-            font-family: 'Oswald', sans-serif;
-            font-weight: 600;
-            color: #fff;
-            background: var(--new);
-        }
-        .ticket.en_preparation .ticket__band { background: var(--prep); }
-        .ticket.prete .ticket__band { background: var(--ready); }
+        .conn { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--on-dark-2); }
+        .conn::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--late); }
+        .conn.on { color: #7fd8a0; }
+        .conn.on::before { background: var(--ready); box-shadow: 0 0 0 3px rgba(22, 163, 74, .25); }
 
-        .ticket__num {
-            font-family: 'Roboto Mono', monospace;
-            font-size: 1.15rem;
-            letter-spacing: 0.03em;
-        }
-        .ticket__status {
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            opacity: 0.9;
-        }
+        .bar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
-        .ticket__meta {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 16px 0;
+        .tbtn {
+            display: inline-flex; align-items: center; gap: 8px;
+            height: 42px; padding: 0 14px;
+            border-radius: 9px; border: 1px solid var(--col-border);
+            background: var(--col); color: var(--on-dark);
+            font-weight: 700; font-size: 14px; cursor: pointer;
         }
-        .ticket__table {
-            font-size: 0.8rem;
-            letter-spacing: 0.06em;
-            color: var(--ink-soft);
-            text-transform: uppercase;
-        }
-        .ticket__table strong {
-            font-family: 'Oswald', sans-serif;
-            font-size: 1.2rem;
-            color: var(--ink);
-            margin-left: 4px;
-        }
-        .ticket__timer {
-            font-family: 'Roboto Mono', monospace;
-            font-weight: 700;
-            font-size: 1.05rem;
-            color: var(--ink-soft);
-            border: 1px solid var(--paper-line);
-            border-radius: 4px;
-            padding: 2px 8px;
-        }
-        .ticket--warn .ticket__timer { color: #a8620a; border-color: #a8620a; }
-        .ticket--late .ticket__timer {
-            color: #fff;
-            background: var(--new);
-            border-color: var(--new);
-            animation: pulse 1.4s ease-in-out infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.55; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-            .ticket--late .ticket__timer { animation: none; }
-        }
+        .tbtn:hover { background: #18262f; }
+        .tbtn.off { color: var(--on-dark-2); }
+        .tbtn.off svg { color: var(--late); }
+        .tbtn.attention { border-color: var(--prep); animation: blink 1.6s ease-in-out infinite; }
+        @keyframes blink { 50% { border-color: var(--col-border); } }
 
-        .ticket__note {
-            margin: 12px 16px 0;
-            background: #fbe8a6;
-            border-left: 3px solid #a8620a;
-            padding: 8px 10px;
-            font-size: 0.88rem;
-            font-style: italic;
-            color: #5a3d05;
-        }
-        .ticket__note-flag {
-            display: block;
-            font-style: normal;
-            font-weight: 700;
-            text-transform: uppercase;
-            font-size: 0.68rem;
-            letter-spacing: 0.1em;
-            margin-bottom: 2px;
-        }
+        .clock { font-family: var(--mono); font-size: 20px; font-weight: 700; padding: 0 6px 0 10px; }
 
-        .ticket__items {
-            list-style: none;
-            margin: 14px 16px;
-            padding: 10px 0 0;
-            border-top: 1px dashed var(--paper-line);
-            flex-grow: 1;
+        /* ---------- Tableau ---------- */
+        .board {
+            flex: 1; min-height: 0;
+            display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px; padding: 14px;
         }
-        .ticket__items li {
-            display: flex;
-            gap: 8px;
-            padding: 4px 0;
-            font-size: 1rem;
+        .column {
+            display: flex; flex-direction: column; min-height: 0;
+            background: var(--col); border: 1px solid var(--col-border); border-radius: 12px;
         }
-        .ticket__items .qty {
-            font-family: 'Roboto Mono', monospace;
-            font-weight: 700;
-            min-width: 28px;
+        .col-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px; border-bottom: 1px solid var(--col-border);
         }
+        .col-head h2 {
+            margin: 0; display: flex; align-items: center; gap: 10px;
+            font-size: 17px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+        }
+        .col-head h2::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+        .col-count {
+            min-width: 30px; height: 30px; padding: 0 8px; border-radius: 15px;
+            display: grid; place-items: center;
+            font-family: var(--mono); font-weight: 700; font-size: 15px;
+            background: var(--c); color: #fff;
+        }
+        .col-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+        .col-body::-webkit-scrollbar { width: 8px; }
+        .col-body::-webkit-scrollbar-thumb { background: var(--col-border); border-radius: 4px; }
+        .col-empty { margin: auto; color: var(--on-dark-2); font-weight: 600; font-size: 14px; padding: 30px 0; }
 
-        .ticket__actions {
-            display: flex;
-            gap: 8px;
-            padding: 0 16px 16px;
-        }
-        .ticket__actions form { flex: 1; }
+        .column[data-col="nouvelle"]       { --c: var(--new); }
+        .column[data-col="en_preparation"] { --c: var(--prep); }
+        .column[data-col="prete"]          { --c: var(--ready); }
 
-        .btn {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-family: 'Oswald', sans-serif;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            font-size: 0.85rem;
-            color: #fff;
-            transition: filter 0.15s ease, transform 0.05s ease;
+        /* ---------- Ticket ---------- */
+        .ticket {
+            background: var(--card); color: var(--text);
+            border-radius: 10px; border-left: 5px solid var(--c);
+            padding: 14px 16px 14px 14px;
+            animation: enter .35s ease-out;
         }
-        .btn:hover { filter: brightness(1.1); }
-        .btn:active { transform: scale(0.98); }
-        .btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
-        .btn--prep { background: var(--prep); }
-        .btn--ready { background: var(--ready); }
-        .btn.is-loading { opacity: 0.75; cursor: wait; }
+        .ticket.just-added { box-shadow: 0 0 0 3px var(--c); }
+        @keyframes enter { from { opacity: 0; transform: translateY(-8px); } }
 
-        .pass-empty {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--muted);
-            font-family: 'Oswald', sans-serif;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            font-size: 1.1rem;
-            border: 1px dashed var(--steel-700);
-            border-radius: 8px;
+        .t-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+        .t-table { font-size: 22px; font-weight: 800; line-height: 1.1; }
+        .t-id { font-family: var(--mono); font-size: 13px; color: var(--text-3); margin-top: 3px; }
+        .t-timer {
+            font-family: var(--mono); font-weight: 700; font-size: 15px;
+            padding: 4px 9px; border-radius: 6px;
+            background: #eef2f4; color: var(--text-2); white-space: nowrap;
         }
+        .ticket.warn .t-timer { background: #fdf0dd; color: #a35f06; }
+        .ticket.late .t-timer { background: var(--late); color: #fff; }
+        .ticket.late { border-left-color: var(--late); }
 
-        /* Sound toggle, styled like a kitchen switch */
-        #btnUnlock {
-            position: fixed;
-            top: 22px;
-            right: 22px;
-            padding: 12px 18px;
-            background: var(--steel-800);
-            color: #fff;
-            border: 1px solid var(--steel-700);
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: 'Oswald', sans-serif;
-            text-transform: uppercase;
-            font-size: 0.8rem;
-            letter-spacing: 0.06em;
-            z-index: 9999;
+        .t-note {
+            margin-top: 10px; padding: 8px 10px; border-radius: 6px;
+            background: #fff6dc; color: #6b4a00; font-size: 14px; font-weight: 600;
         }
-        #btnUnlock:hover { filter: brightness(1.15); }
+        .t-note b { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #a35f06; }
+
+        .t-items { list-style: none; margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid var(--line); }
+        .t-items li { display: flex; gap: 10px; padding: 4px 0; font-size: 17px; font-weight: 600; }
+        .t-items .q { font-family: var(--mono); font-weight: 700; min-width: 34px; color: var(--text); }
+
+        .t-actions { display: flex; gap: 8px; margin-top: 14px; }
+        .act {
+            flex: 1; height: 50px; border: 0; border-radius: 8px; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            font-weight: 800; font-size: 15px; color: #fff; background: var(--a);
+            touch-action: manipulation;
+        }
+        .act:active { transform: scale(.98); }
+        .act[disabled] { opacity: .6; cursor: wait; }
+        .act.start { --a: var(--prep); }
+        .act.ready { --a: var(--ready); }
+        .act.serve { --a: var(--brand); }
+        .act.ghost { flex: 0 0 50px; background: #eef2f4; color: var(--text-2); }
+
+        /* ---------- Toast ---------- */
+        .toasts { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 100; }
+        .toast {
+            background: #fff; color: var(--text); font-weight: 700; font-size: 15px;
+            padding: 12px 18px; border-radius: 9px; box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+            border-left: 4px solid var(--c, var(--brand));
+            animation: enter .25s ease-out;
+        }
+        .toast.err { --c: var(--late); }
+
+        /* ---------- Petits écrans (tablette en portrait, téléphone) ---------- */
+        @media (max-width: 900px) {
+            body { overflow: auto; height: auto; }
+            .board { grid-template-columns: 1fr; }
+            .col-body { overflow: visible; }
+            .bar { flex-wrap: wrap; }
+            .tbtn span { display: none; }
+            .clock { display: none; }
+        }
     </style>
 </head>
 <body>
 
-<div class="pass-header">
-    <h1>Cuisine <span>LIVE</span></h1>
-    <div class="pass-clock" id="passClock"></div>
-</div>
+@php
+    $initial = $commandes->map(fn ($c) => [
+        'id'      => $c->id,
+        'statut'  => $c->statut,
+        'table'   => $c->table->numero ?? null,
+        'created' => $c->created_at->timestamp,
+        'note'    => $c->note,
+        'items'   => $c->items->map(fn ($i) => [
+            'q'   => $i->quantite,
+            'nom' => $i->plat->nom ?? 'Plat supprimé',
+        ])->values(),
+    ])->values();
+@endphp
 
-<div class="kitchen-grid">
-    @forelse($commandes as $commande)
-    <div class="ticket {{ $commande->statut }}" data-created="{{ $commande->created_at->timestamp }}" data-statut="{{ $commande->statut }}">
-        <div class="ticket__perforation"></div>
-        <div class="ticket__band">
-            <span class="ticket__num">#{{ str_pad($commande->id, 3, '0', STR_PAD_LEFT) }}</span>
-            <span class="ticket__status">{{ str_replace('_', ' ', $commande->statut) }}</span>
-        </div>
-
-        <div class="ticket__meta">
-            <div class="ticket__table">Table<strong>{{ $commande->table->numero ?? '—' }}</strong></div>
-            <div class="ticket__timer" data-timer>00:00</div>
-        </div>
-
-        @if(!empty($commande->note))
-            <div class="ticket__note">
-                <span class="ticket__note-flag">Note client</span>
-                {{ $commande->note }}
-            </div>
-        @endif
-
-        <ul class="ticket__items">
-            @foreach($commande->items as $item)
-                <li><span class="qty">{{ $item->quantite }}×</span><span class="name">{{ $item->plat->nom ?? 'Plat supprimé' }}</span></li>
-            @endforeach
-        </ul>
-
-        <div class="ticket__actions">
-            @if($commande->statut == 'nouvelle')
-                <form method="POST" action="/cuisine/update/{{ $commande->id }}">
-                    @csrf
-                    <input type="hidden" name="statut" value="en_preparation">
-                    <button type="submit" class="btn btn--prep" onclick="this.classList.add('is-loading'); this.innerText='En cours…'">Lancer en préparation</button>
-                </form>
-            @endif
-
-            @if($commande->statut != 'prete')
-                <form method="POST" action="/cuisine/update/{{ $commande->id }}">
-                    @csrf
-                    <input type="hidden" name="statut" value="prete">
-                    <button type="submit" class="btn btn--ready">Marquer prête</button>
-                </form>
-            @endif
-        </div>
+<header class="bar">
+    <div class="bar-brand">
+        <span class="mark">KY</span>
+        <span>Cuisine<small>Resto Kay-Y</small></span>
     </div>
-    @empty
-    <div class="pass-empty">Aucune commande en attente</div>
-    @endforelse
-</div>
+    <span class="conn" id="conn">Connexion…</span>
 
-<!-- AUDIO -->
+    <div class="bar-right">
+        <button class="tbtn" id="btnSound" type="button"><i data-lucide="volume-2"></i><span>Son</span></button>
+        <button class="tbtn" id="btnVoice" type="button"><i data-lucide="megaphone"></i><span>Annonce vocale</span></button>
+        <button class="tbtn" id="btnFull" type="button" title="Plein écran"><i data-lucide="maximize"></i></button>
+        <span class="clock" id="clock">--:--</span>
+    </div>
+</header>
+
+<main class="board">
+    <section class="column" data-col="nouvelle">
+        <div class="col-head"><h2>Nouvelles</h2><span class="col-count">0</span></div>
+        <div class="col-body"></div>
+    </section>
+    <section class="column" data-col="en_preparation">
+        <div class="col-head"><h2>En préparation</h2><span class="col-count">0</span></div>
+        <div class="col-body"></div>
+    </section>
+    <section class="column" data-col="prete">
+        <div class="col-head"><h2>Prêtes</h2><span class="col-count">0</span></div>
+        <div class="col-body"></div>
+    </section>
+</main>
+
+<div class="toasts" id="toasts"></div>
 <audio id="notifSound" src="{{ asset('sounds/notification.mp3') }}" preload="auto"></audio>
 
-<button id="btnUnlock">🔊 Activer le son</button>
-
 <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-
-
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script>
-/*=========================================================
-=                                                         =
-=       RESTO KAY-Y - CUISINE LIVE                        =
-=       COMPLETE JAVASCRIPT (CORRIGÉ)                     =
-=                                                         =
-=========================================================*/
+(function () {
+    'use strict';
 
+    const UPDATE_URL = @json(url('/cuisine/update'));
+    const CSRF       = document.querySelector('meta[name="csrf-token"]').content;
+    const WARN_AFTER = 10 * 60;   // secondes
+    const LATE_AFTER = 15 * 60;
 
-/*=====================================
-=       CONFIGURATION                 =
-=====================================*/
-
-const sound = document.getElementById("notifSound");
-const btn = document.getElementById("btnUnlock");
-
-let unlocked = localStorage.getItem("soundUnlocked") === "true";
-
-if(unlocked && btn){
-    btn.style.display = "none";
-}
-
-
-
-/*=====================================
-=       ACTIVER LE SON                =
-=====================================*/
-
-if(btn && sound){
-    btn.onclick = function(){
-        sound.play()
-        .then(()=>{
-            sound.pause();
-            sound.currentTime = 0;
-            localStorage.setItem("soundUnlocked", "true");
-            btn.style.display = "none";
-            alert("✅ Son activé");
-        })
-        .catch(err=>{
-            console.log(err);
-        });
+    const STATUS = {
+        nouvelle:       { label: 'Nouvelle',       next: 'en_preparation', btn: 'Commencer',       cls: 'start', icon: 'play' },
+        en_preparation: { label: 'En préparation', next: 'prete',          btn: 'Prête',           cls: 'ready', icon: 'check' },
+        prete:          { label: 'Prête',          next: 'servie',         btn: 'Servie',          cls: 'serve', icon: 'hand-platter' },
     };
-}
 
+    const icons = () => window.lucide && lucide.createIcons();
 
+    /* ======================================================
+       Préférences : son & annonce vocale (gardées sur l'appareil)
+       ====================================================== */
+    const store = {
+        get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v === '1'; } catch (e) { return d; } },
+        set: (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch (e) {} },
+    };
+    let soundOn = store.get('kitchen.sound', true);
+    let voiceOn = store.get('kitchen.voice', true);
+    let audioUnlocked = false;
 
-/*=====================================
-=       PUSHER                        =
-=====================================*/
+    const sound    = document.getElementById('notifSound');
+    const btnSound = document.getElementById('btnSound');
+    const btnVoice = document.getElementById('btnVoice');
 
-const pusher = new Pusher(
-    '{{ config("broadcasting.connections.reverb.key") }}',
-    {
-        wsHost: '{{ config("broadcasting.connections.reverb.options.host") }}',
-        wsPort: {{ config("broadcasting.connections.reverb.options.port") }},
-        forceTLS: false,
-        disableStats: true,
-        cluster: 'mt1'
+    function renderToggles() {
+        btnSound.classList.toggle('off', !soundOn);
+        btnSound.innerHTML = `<i data-lucide="${soundOn ? 'volume-2' : 'volume-x'}"></i><span>${soundOn ? 'Son' : 'Son coupé'}</span>`;
+        // Le navigateur bloque le son tant que personne n'a touché l'écran
+        btnSound.classList.toggle('attention', soundOn && !audioUnlocked);
+        btnSound.title = soundOn && !audioUnlocked ? "Touchez l'écran une fois pour autoriser le son" : '';
+
+        btnVoice.classList.toggle('off', !voiceOn);
+        btnVoice.innerHTML = `<i data-lucide="${voiceOn ? 'megaphone' : 'megaphone-off'}"></i><span>${voiceOn ? 'Annonce vocale' : 'Voix coupée'}</span>`;
+        icons();
     }
-);
 
-const channel = pusher.subscribe('kitchen');
+    function unlockAudio() {
+        if (audioUnlocked || !sound) return;
+        sound.muted = true;
+        sound.play().then(() => {
+            sound.pause(); sound.currentTime = 0; sound.muted = false;
+            audioUnlocked = true; renderToggles();
+        }).catch(() => { sound.muted = false; });
+    }
+    document.addEventListener('pointerdown', unlockAudio);
 
-
-
-/*=====================================
-=       HORLOGE LIVE                  =
-=====================================*/
-
-const clock = document.getElementById('passClock');
-
-function updateClock(){
-    if(!clock) return;
-    clock.innerHTML = new Date().toLocaleTimeString('fr-FR');
-}
-
-updateClock();
-setInterval(updateClock, 1000);
-
-
-
-/*=====================================
-=       TIMER DES TICKETS             =
-=====================================*/
-
-const WARNING_TIME = 10 * 60;
-const DANGER_TIME = 15 * 60;
-
-function pad(n){
-    return n.toString().padStart(2, '0');
-}
-
-function updateTicketTimers(){
-    document.querySelectorAll('.ticket[data-created]').forEach(ticket => {
-        const created = parseInt(ticket.dataset.created);
-        const statut = ticket.dataset.statut;
-        const timer = ticket.querySelector('[data-timer]');
-
-        if(!timer) return;
-
-        const elapsed = Math.floor(Date.now() / 1000) - created;
-        const min = Math.floor(elapsed / 60);
-        const sec = elapsed % 60;
-
-        timer.innerHTML = pad(min) + ":" + pad(sec);
-
-        ticket.classList.remove("ticket--warn", "ticket--late");
-
-        if(statut !== "prete"){
-            if(elapsed >= DANGER_TIME){
-                ticket.classList.add("ticket--late");
-            } else if(elapsed >= WARNING_TIME){
-                ticket.classList.add("ticket--warn");
-            }
-        }
+    btnSound.addEventListener('click', () => {
+        soundOn = !soundOn; store.set('kitchen.sound', soundOn);
+        if (!soundOn && sound) { sound.pause(); }
+        renderToggles();
     });
-}
+    btnVoice.addEventListener('click', () => {
+        voiceOn = !voiceOn; store.set('kitchen.voice', voiceOn);
+        if (!voiceOn && 'speechSynthesis' in window) speechSynthesis.cancel();
+        renderToggles();
+    });
+    document.getElementById('btnFull').addEventListener('click', () => {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen?.();
+    });
 
-updateTicketTimers();
-setInterval(updateTicketTimers, 1000);
-
-
-
-/*=====================================
-=       LECTURE VOCALE                =
-=====================================*/
-
-/*=====================================
-=       LECTURE VOCALE (CORRIGÉE)     =
-=====================================*/
-
-function speakOrder(e){
-    console.log("📢 speakOrder te resevwa:", e);
-
-    if(!('speechSynthesis' in window)){
-        console.log("Speech API indisponible");
-        return;
-    }
-
-    let plats = "";
-
-    // Si e gen items oubyen e.commande.items
-    let itemsList = e.items ? e.items : (e.commande && e.commande.items ? e.commande.items : []);
-
-    if(Array.isArray(itemsList) && itemsList.length > 0){
-        let itemsArray = [];
-        itemsList.forEach(item => {
-            let quantite = item.quantite ? item.quantite : 1;
-            let nomPlat = item.nom ? item.nom : (item.plat && item.plat.nom ? item.plat.nom : '');
-            
-            if(nomPlat) {
-                itemsArray.push(quantite + " " + nomPlat);
-            }
+    function ding() {
+        if (!soundOn || !sound) return Promise.resolve();
+        sound.currentTime = 0;
+        return new Promise((resolve) => {
+            sound.onended = resolve;
+            sound.play().catch(resolve);
+            setTimeout(resolve, 4000);
         });
-        plats = itemsArray.join(", ");
     }
 
-    let numeroTable = 'N/A';
-    if(e.table && e.table.numero){
-        numeroTable = e.table.numero;
-    } else if(e.commande && e.commande.table && e.commande.table.numero){
-        numeroTable = e.commande.table.numero;
-    }
-
-    let texte = "Attention. Nouvelle commande. Table numéro " + numeroTable + ".";
-    
-    if(plats !== ""){
-        texte += " " + plats + ".";
-    }
-    
-    texte += " Merci.";
-
-    console.log("Texte prononcé:", texte);
-
-    speechSynthesis.cancel();
-    const voice = new SpeechSynthesisUtterance(texte);
-    voice.lang = "fr-FR";
-    voice.rate = 0.9;
-    voice.pitch = 1;
-    voice.volume = 1;
-
-    speechSynthesis.speak(voice);
-}
-
-
-/*=====================================
-=       DEBUG                         =
-=====================================*/
-
-pusher.connection.bind('connected', () => {
-    console.log("✅ WebSocket connecté");
-});
-
-
-
-/*=====================================
-=       NOUVELLE COMMANDE             =
-=====================================*/
-channel.bind('new-order', function(e){
-    console.log("🔥 Lòt evènman 'new-order' resevwa:", e);
-
-    addOrderCard(e);
-
-function finishAction(){
-
-    speakOrder(e);
-
-    if("speechSynthesis" in window){
-
+    function announce(order) {
+        if (!voiceOn || !('speechSynthesis' in window)) return;
+        const plats = order.items.map(i => i.q + ' ' + i.nom).join(', ');
+        let text = 'Nouvelle commande, table ' + (order.table ?? 'inconnue') + '.';
+        if (plats) text += ' ' + plats + '.';
+        if (order.note) text += ' Note : ' + order.note + '.';
         speechSynthesis.cancel();
-
-        const plats = e.commande.items
-            .map(item => item.quantite + " " + item.plat.nom)
-            .join(", ");
-
-        const texte =
-            "Attention. Nouvelle commande de la table numéro " +
-            e.commande.table.numero +
-            ". " +
-            plats +
-            ". Merci.";
-
-        const voice = new SpeechSynthesisUtterance(texte);
-
-        voice.lang = "fr-FR";
-        voice.rate = 0.9;
-        voice.pitch = 1;
-        voice.volume = 1;
-
-        // 🔥 Reload sèlman lè vwa a fini
-        voice.onend = function(){
-
-            location.reload();
-
-        };
-
-        speechSynthesis.speak(voice);
-
-    }else{
-
-        location.reload();
-
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'fr-FR'; u.rate = 0.95;
+        speechSynthesis.speak(u);
     }
 
-}
+    /* ======================================================
+       Rendu des tickets
+       ====================================================== */
+    const orders = new Map();
 
-    if(localStorage.getItem("soundUnlocked") === "true" && sound){
-        sound.currentTime = 0;
-        sound.play()
-        .then(function(){
-            sound.onended = function(){
-                finishAction();
-            };
-        })
-        .catch(function(){
-            finishAction();
+    function el(tag, cls, text) {
+        const n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text !== undefined && text !== null) n.textContent = text;
+        return n;
+    }
+
+    function buildCard(o) {
+        const st = STATUS[o.statut];
+        const card = el('article', 'ticket');
+        card.id = 'order-' + o.id;
+
+        const head = el('div', 't-head');
+        const who = el('div');
+        who.append(el('div', 't-table', o.table ? 'Table ' + o.table : 'À emporter'));
+        who.append(el('div', 't-id', '#' + String(o.id).padStart(4, '0')));
+        const timer = el('span', 't-timer', '00:00');
+        timer.dataset.timer = '';
+        head.append(who, timer);
+        card.append(head);
+
+        if (o.note) {
+            const note = el('div', 't-note');
+            note.append(el('b', null, 'Note client'), document.createTextNode(o.note));
+            card.append(note);
+        }
+
+        const list = el('ul', 't-items');
+        o.items.forEach(i => {
+            const li = el('li');
+            li.append(el('span', 'q', i.q + '×'), el('span', null, i.nom));
+            list.append(li);
         });
-    } else {
-        finishAction();
+        card.append(list);
+
+        const actions = el('div', 't-actions');
+        const main = el('button', 'act ' + st.cls);
+        main.type = 'button';
+        main.innerHTML = `<i data-lucide="${st.icon}"></i>`;
+        main.append(document.createTextNode(st.btn));
+        main.addEventListener('click', () => changeStatus(o.id, st.next, main));
+        actions.append(main);
+
+        if (o.statut !== 'nouvelle') {
+            const back = el('button', 'act ghost');
+            back.type = 'button';
+            back.title = 'Revenir à l\'étape précédente';
+            back.innerHTML = '<i data-lucide="undo-2"></i>';
+            const prev = o.statut === 'prete' ? 'en_preparation' : 'nouvelle';
+            back.addEventListener('click', () => changeStatus(o.id, prev, back));
+            actions.append(back);
+        }
+        card.append(actions);
+        return card;
     }
-});
 
+    function place(o, { highlight = false } = {}) {
+        document.getElementById('order-' + o.id)?.remove();
 
+        if (!STATUS[o.statut]) { orders.delete(o.id); refreshCounts(); return; }   // servie / archivée
+        orders.set(o.id, o);
 
-/*=====================================
-=       COMMANDE ACCEPTÉE             =
-=====================================*/
+        const body = document.querySelector(`.column[data-col="${o.statut}"] .col-body`);
+        const card = buildCard(o);
+        if (highlight) { card.classList.add('just-added'); setTimeout(() => card.classList.remove('just-added'), 6000); }
 
-channel.bind('order-accepted', function(e){
-    console.log("👨‍🍳 Préparation", e);
+        // Ordre d'arrivée : la plus ancienne en haut
+        const after = [...body.querySelectorAll('.ticket')].find(c => (orders.get(+c.id.slice(6))?.created ?? 0) > o.created);
+        body.insertBefore(card, after || null);
 
-    if(localStorage.getItem("soundUnlocked") === "true" && sound){
-        sound.currentTime = 0;
-        sound.play().catch(()=>{});
+        icons(); tickTimers(); refreshCounts();
     }
 
-    // Sipozé jere si ID a nan e.id oubyen e.commande.id
-    const commandeId = e.id ? e.id : (e.commande ? e.commande.id : null);
-    const card = document.getElementById("order-" + commandeId);
-    
-    if(card){
-        card.dataset.statut = "en_preparation";
-        const badge = card.querySelector(".badge");
-        if(badge){
-            badge.innerHTML = "👨‍🍳 En préparation";
-            badge.style.background = "#fff3cd";
-            badge.style.color = "#d97706";
+    function refreshCounts() {
+        document.querySelectorAll('.column').forEach(col => {
+            const n = col.querySelectorAll('.ticket').length;
+            col.querySelector('.col-count').textContent = n;
+            const body = col.querySelector('.col-body');
+            const empty = body.querySelector('.col-empty');
+            if (n === 0 && !empty) body.append(el('div', 'col-empty', 'Aucune commande'));
+            if (n > 0 && empty) empty.remove();
+        });
+    }
+
+    /* ======================================================
+       Chronos
+       ====================================================== */
+    const pad = n => String(n).padStart(2, '0');
+    function tickTimers() {
+        const now = Math.floor(Date.now() / 1000);
+        orders.forEach(o => {
+            const card = document.getElementById('order-' + o.id);
+            if (!card) return;
+            const s = Math.max(0, now - o.created);
+            card.querySelector('[data-timer]').textContent = pad(Math.floor(s / 60)) + ':' + pad(s % 60);
+            const active = o.statut !== 'prete';
+            card.classList.toggle('late', active && s >= LATE_AFTER);
+            card.classList.toggle('warn', active && s >= WARN_AFTER && s < LATE_AFTER);
+        });
+    }
+    setInterval(tickTimers, 1000);
+
+    const clock = document.getElementById('clock');
+    const tickClock = () => clock.textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    tickClock(); setInterval(tickClock, 10000);
+
+    /* ======================================================
+       Changement de statut (sans recharger la page)
+       ====================================================== */
+    async function changeStatus(id, statut, button) {
+        const o = orders.get(id);
+        if (!o) return;
+        button.disabled = true;
+        try {
+            const res = await fetch(UPDATE_URL + '/' + id, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                body: JSON.stringify({ statut }),
+            });
+            if (!res.ok) throw new Error(res.status);
+            place({ ...o, statut });
+        } catch (e) {
+            button.disabled = false;
+            toast('Échec de la mise à jour, réessayez.', true);
         }
     }
 
-    showToast("👨‍🍳 Commande #" + (commandeId || '') + " en préparation");
-});
-
-
-
-/*=====================================
-=       COMMANDE PRÊTE                =
-=====================================*/
-
-channel.bind('order-ready', function(e){
-    console.log("🍽️ Prête", e);
-
-    if(localStorage.getItem("soundUnlocked") === "true" && sound){
-        sound.currentTime = 0;
-        sound.play().catch(()=>{});
+    function toast(msg, isErr) {
+        const t = el('div', 'toast' + (isErr ? ' err' : ''), msg);
+        document.getElementById('toasts').append(t);
+        setTimeout(() => t.remove(), 3500);
     }
 
-    const commandeId = e.id ? e.id : (e.commande ? e.commande.id : null);
-    const card = document.getElementById("order-" + commandeId);
-    
-    if(card){
-        card.style.transition = ".6s";
-        card.style.opacity = "0";
-        card.style.transform = "scale(.8)";
-        setTimeout(function(){
-            card.remove();
-        }, 600);
+    /* ======================================================
+       Temps réel
+       ====================================================== */
+    function normalize(e) {
+        const c = e.commande || e;
+        const created = c.created_at ? Math.floor(Date.parse(c.created_at) / 1000) : Math.floor(Date.now() / 1000);
+        return {
+            id: c.id,
+            statut: c.statut || 'nouvelle',
+            table: c.table?.numero ?? e.table?.numero ?? null,
+            created: Number.isFinite(created) ? created : Math.floor(Date.now() / 1000),
+            note: c.note || null,
+            items: (c.items || e.items || []).map(i => ({ q: i.quantite ?? 1, nom: i.plat?.nom ?? i.nom ?? 'Plat' })),
+        };
     }
 
-    showToast("✅ Commande #" + (commandeId || '') + " prête");
-});
-
-
-
-/*=====================================
-=       DEBUG GLOBAL                  =
-=====================================*/
-
-channel.bind_global(function(event, data){
-    console.log("📡 EVENT :", event, data);
-});
-
-
-
-/*=====================================
-=       TOAST PREMIUM                 =
-=====================================*/
-
-function showToast(message){
-    const toast = document.createElement("div");
-    toast.className = "live-toast";
-    toast.innerHTML = message;
-    document.body.appendChild(toast);
-
-    setTimeout(function(){
-        toast.classList.add("show");
-    }, 100);
-
-    setTimeout(function(){
-        toast.classList.remove("show");
-        setTimeout(function(){
-            toast.remove();
-        }, 400);
-    }, 3500);
-}
-
-
-
-/*=====================================
-=       AJOUT D'UNE COMMANDE          =
-=====================================*/
-
-function addOrderCard(e){
-    const list = document.getElementById("order-list");
-    if(!list) return;
-
-    const commandeId = e.id ? e.id : (e.commande ? e.commande.id : null);
-    if(!commandeId) return;
-
-    if(document.getElementById("order-" + commandeId)){
-        return;
-    }
-
-    let plats = "";
-    let itemsList = e.items ? e.items : (e.commande && e.commande.items ? e.commande.items : []);
-
-    if(Array.isArray(itemsList)){
-        itemsList.forEach(function(item){
-            let nomPlat = item.nom ? item.nom : (item.plat ? item.plat.nom : 'Plat');
-            plats += `
-            <div class="item-row">
-                <span>${nomPlat}</span>
-                <b>x${item.quantite}</b>
-            </div>
-            `;
-        });
-    }
-
-    let numeroTable = 'N/A';
-    if(e.table && e.table.numero){
-        numeroTable = e.table.numero;
-    } else if(e.commande && e.commande.table && e.commande.table.numero){
-        numeroTable = e.commande.table.numero;
-    }
-
-    const html = `
-    <div
-    class="ticket"
-    id="order-${commandeId}"
-    data-created="${Math.floor(Date.now()/1000)}"
-    data-statut="nouvelle"
-    >
-        <div class="ticket-header">
-            <h3>🍽️ Commande #${commandeId}</h3>
-            <span class="badge">Nouvelle</span>
-        </div>
-        <div class="ticket-table">
-            🪑 Table <b>${numeroTable}</b>
-        </div>
-        <div class="ticket-items">
-            ${plats}
-        </div>
-        <div class="ticket-footer">
-            ⏱️ <span data-timer>00:00</span>
-        </div>
-    </div>
-    `;
-
-    list.insertAdjacentHTML("afterbegin", html);
-    updateTicketTimers();
-}
-
-
-
-/*=====================================
-=       ANIMATION CARD                =
-=====================================*/
-
-document.addEventListener("animationend", function(e){
-    if(e.target.classList.contains("ticket")){
-        e.target.classList.remove("pulse");
-    }
-});
-
-
-
-/*=====================================
-=       RELOAD INTELLIGENT            =
-=====================================*/
-
-let reloadTimer = null;
-
-function smartReload(){
-    clearTimeout(reloadTimer);
-    reloadTimer = setTimeout(function(){
-        location.reload();
-    }, 500);
-}
-
-document.addEventListener("visibilitychange", function(){
-    if(document.visibilityState === "visible"){
-        smartReload();
-    }
-});
-
-window.addEventListener("focus", function(){
-    smartReload();
-});
-
-
-
-/*=====================================
-=       TEST VOCALE                   =
-=====================================*/
-
-window.testVoice = function(){
-    speakOrder({
-        table: {
-            numero: 5
-        },
-        items: [
-            {
-                quantite: 2,
-                nom: "Pizza"
-            },
-            {
-                quantite: 1,
-                nom: "Hamburger"
-            }
-        ]
+    const pusher = new Pusher(@json(config('broadcasting.connections.reverb.key')), {
+        wsHost: @json(config('broadcasting.connections.reverb.options.host')),
+        wsPort: @json((int) config('broadcasting.connections.reverb.options.port')),
+        forceTLS: false,
+        enabledTransports: ['ws', 'wss'],
+        disableStats: true,
+        cluster: 'mt1',
     });
-};
 
+    const conn = document.getElementById('conn');
+    pusher.connection.bind('state_change', ({ current }) => {
+        const on = current === 'connected';
+        conn.classList.toggle('on', on);
+        conn.textContent = on ? 'En direct' : 'Hors ligne';
+    });
 
+    const channel = pusher.subscribe('kitchen');
 
-/*=====================================
-=       FIN                           =
-=====================================*/
+    channel.bind('new-order', async (e) => {
+        const o = normalize(e);
+        if (!o.id || orders.has(o.id)) return;
+        place({ ...o, statut: 'nouvelle' }, { highlight: true });
+        await ding();
+        announce(o);
+    });
 
-console.log("🍽️ Cuisine LIVE Premium Ready");
+    // Les noms d'événements diffèrent entre les écrans existants : on écoute les deux variantes.
+    const onAccepted = (e) => { const o = normalize(e); const cur = orders.get(o.id); if (cur && cur.statut !== 'en_preparation') { place({ ...cur, statut: 'en_preparation' }); } };
+    const onReady    = (e) => { const o = normalize(e); const cur = orders.get(o.id); if (cur && cur.statut !== 'prete') { place({ ...cur, statut: 'prete' }); ding(); } };
+    channel.bind('order-accepted', onAccepted);
+    channel.bind('accepted', onAccepted);
+    channel.bind('order-ready', onReady);
+    channel.bind('ready', onReady);
+
+    /* ======================================================
+       Démarrage
+       ====================================================== */
+    @json($initial).forEach(o => place(o));
+    refreshCounts();
+    renderToggles();
+})();
 </script>
-
 </body>
 </html>

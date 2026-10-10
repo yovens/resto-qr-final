@@ -1,455 +1,65 @@
-@extends('admin.layouts.app')
+@extends('admin.layouts.layout')
+
+@section('title', $user->name)
+
+@php
+    $roles = [
+        'admin'     => ['Administrateur', 'Accès complet : menu, stock, finances, employés et comptes.'],
+        'caissier'  => ['Caissier',       'Encaisse les commandes et consulte les ventes.'],
+        'cuisinier' => ['Cuisinier',      "Accède à l'écran cuisine et met à jour les commandes."],
+        'serveur'   => ['Serveur',        'Suit les commandes des tables et les sert.'],
+    ];
+    [$roleLabel, $roleDesc] = $roles[$user->role] ?? [ucfirst((string) $user->role), ''];
+    $isMe = $user->id == auth()->id();
+@endphp
 
 @section('content')
-<div class="user-profile-page">
 
-    <div class="user-profile-card">
+<a href="/admin/users" class="back-link"><i data-lucide="arrow-left"></i> Utilisateurs</a>
 
-        <div class="user-header">
-
-            <div class="user-avatar">
-                {{ strtoupper(substr($user->name,0,1)) }}
-            </div>
-
-            <h1>{{ $user->name }}</h1>
-
-            <span class="user-role">
-                {{ $user->role }}
-            </span>
-
+<div class="card" style="max-width: 760px">
+    <div class="profile-head">
+        <span class="profile-avatar" style="border-radius:50%">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}</span>
+        <div style="min-width:0">
+            <h2>{{ $user->name }}</h2>
+            <p>{{ $roleLabel }}@if($isMe) · c'est votre compte @endif</p>
         </div>
-
-        <div class="user-body">
-
-            <div class="user-info">
-
-                <div class="user-label">
-
-                    <i class="fa-solid fa-envelope"></i>
-
-                    Email
-
-                </div>
-
-                <div class="user-value">
-
-                    {{ $user->email }}
-
-                </div>
-
-            </div>
-
-            <div class="user-info">
-
-                <div class="user-label">
-
-                    <i class="fa-solid fa-phone"></i>
-
-                    Téléphone
-
-                </div>
-
-                <div class="user-value">
-
-                    {{ $user->telephone ?? 'Non renseigné' }}
-
-                </div>
-
-            </div>
-
-            <div class="user-info">
-
-                <div class="user-label">
-
-                    <i class="fa-solid fa-calendar"></i>
-
-                    Date de création
-
-                </div>
-
-                <div class="user-value">
-
-                    {{ $user->created_at->format('d/m/Y H:i') }}
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <div class="user-footer">
-
-            <a href="/admin/users" class="btn-user btn-back">
-
-                <i class="fa-solid fa-arrow-left"></i>
-
-                Retour
-
-            </a>
-
-            <a href="/admin/users/{{ $user->id }}/edit" class="btn-user btn-edit">
-
-                <i class="fa-solid fa-pen-to-square"></i>
-
-                Modifier
-
-            </a>
-
-        </div>
-
+        <a href="/admin/users/{{ $user->id }}/edit" class="btn" style="margin-left:auto"><i data-lucide="pencil"></i> Modifier</a>
     </div>
 
+    <dl class="dl">
+        <div>
+            <dt><i data-lucide="shield-check"></i> Rôle</dt>
+            <dd>
+                {{ $roleLabel }}
+                @if($roleDesc)<div class="muted" style="font-weight:500;font-size:13px;margin-top:2px">{{ $roleDesc }}</div>@endif
+            </dd>
+        </div>
+        <div>
+            <dt><i data-lucide="mail"></i> E-mail</dt>
+            <dd><a href="mailto:{{ $user->email }}" class="link" style="font-size:inherit">{{ $user->email }}</a></dd>
+        </div>
+        <div>
+            <dt><i data-lucide="phone"></i> Téléphone</dt>
+            <dd class="num {{ $user->telephone ? '' : 'empty-val' }}">
+                @if($user->telephone)<a href="tel:{{ preg_replace('/[^\d+]/', '', $user->telephone) }}">{{ $user->telephone }}</a>@else Non renseigné @endif
+            </dd>
+        </div>
+        <div>
+            <dt><i data-lucide="calendar"></i> Compte créé</dt>
+            <dd>{{ $user->created_at?->locale('fr')->isoFormat('LL [à] HH:mm') }}</dd>
+        </div>
+    </dl>
+
+    @unless($isMe)
+        <div class="quick-actions">
+            <form method="POST" action="/admin/users/{{ $user->id }}" style="margin-left:auto"
+                  onsubmit="return confirm('Supprimer le compte de {{ addslashes($user->name) }} ? Cette personne ne pourra plus se connecter.');">
+                @csrf @method('DELETE')
+                <button type="submit" class="btn" style="color: var(--danger)"><i data-lucide="trash-2"></i> Supprimer le compte</button>
+            </form>
+        </div>
+    @endunless
 </div>
-<style>
-    /*======================================
-        USER PROFILE
-======================================*/
 
-.user-profile-page{
-
-    max-width:750px;
-
-    margin:35px auto;
-
-    animation:fadeUp .5s ease;
-
-}
-
-.user-profile-card{
-
-    background:#fff;
-
-    border-radius:24px;
-
-    overflow:hidden;
-
-    box-shadow:
-    0 20px 45px rgba(15,23,42,.08);
-
-}
-
-/*======================================
-        HEADER
-======================================*/
-
-.user-header{
-
-    position:relative;
-
-    padding:45px 35px;
-
-    text-align:center;
-
-    background:linear-gradient(
-        135deg,
-        #f59e0b,
-        #d97706
-    );
-
-    color:#fff;
-
-}
-
-.user-header::before{
-
-    content:"";
-
-    position:absolute;
-
-    inset:0;
-
-    background:
-
-    radial-gradient(circle at top right,
-    rgba(255,255,255,.18),
-    transparent 55%);
-
-}
-
-.user-avatar{
-
-    position:relative;
-
-    z-index:2;
-
-    width:120px;
-
-    height:120px;
-
-    margin:auto;
-
-    border-radius:50%;
-
-    display:flex;
-
-    justify-content:center;
-
-    align-items:center;
-
-    background:#fff;
-
-    color:#d97706;
-
-    font-size:48px;
-
-    font-weight:800;
-
-    border:6px solid rgba(255,255,255,.35);
-
-    box-shadow:
-    0 18px 40px rgba(0,0,0,.18);
-
-}
-
-.user-header h1{
-
-    position:relative;
-
-    z-index:2;
-
-    margin-top:18px;
-
-    margin-bottom:8px;
-
-    font-size:30px;
-
-    font-weight:800;
-
-}
-
-.user-role{
-
-    position:relative;
-
-    z-index:2;
-
-    display:inline-block;
-
-    padding:8px 20px;
-
-    border-radius:30px;
-
-    background:rgba(255,255,255,.18);
-
-    border:1px solid rgba(255,255,255,.35);
-
-    text-transform:uppercase;
-
-    font-weight:700;
-
-    letter-spacing:1px;
-
-}
-
-/*======================================
-        BODY
-======================================*/
-
-.user-body{
-
-    padding:35px;
-
-}
-
-.user-info{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    padding:18px 20px;
-
-    margin-bottom:18px;
-
-    border-radius:16px;
-
-    background:#f8fafc;
-
-    transition:.3s;
-
-}
-
-.user-info:hover{
-
-    background:#fff7ed;
-
-    transform:translateX(5px);
-
-}
-
-.user-label{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:10px;
-
-    color:#64748b;
-
-    font-weight:700;
-
-}
-
-.user-label i{
-
-    width:38px;
-
-    height:38px;
-
-    display:flex;
-
-    justify-content:center;
-
-    align-items:center;
-
-    border-radius:10px;
-
-    background:#fef3c7;
-
-    color:#d97706;
-
-}
-
-.user-value{
-
-    color:#1f2937;
-
-    font-weight:700;
-
-}
-
-/*======================================
-        FOOTER
-======================================*/
-
-.user-footer{
-
-    padding:25px 35px;
-
-    display:flex;
-
-    justify-content:center;
-
-    gap:18px;
-
-    border-top:1px solid #e5e7eb;
-
-}
-
-.btn-user{
-
-    padding:13px 26px;
-
-    border-radius:14px;
-
-    text-decoration:none;
-
-    color:#fff;
-
-    font-weight:700;
-
-    transition:.35s;
-
-    display:flex;
-
-    align-items:center;
-
-    gap:10px;
-
-}
-
-.btn-user:hover{
-
-    transform:translateY(-4px);
-
-}
-
-.btn-back{
-
-    background:#64748b;
-
-}
-
-.btn-back:hover{
-
-    background:#475569;
-
-}
-
-.btn-edit{
-
-    background:linear-gradient(
-        135deg,
-        #f59e0b,
-        #d97706
-    );
-
-    box-shadow:
-    0 10px 25px rgba(245,158,11,.28);
-
-}
-
-/*======================================
-        ANIMATION
-======================================*/
-
-@keyframes fadeUp{
-
-    from{
-
-        opacity:0;
-
-        transform:translateY(30px);
-
-    }
-
-    to{
-
-        opacity:1;
-
-        transform:translateY(0);
-
-    }
-
-}
-
-/*======================================
-        RESPONSIVE
-======================================*/
-
-@media(max-width:768px){
-
-    .user-body{
-
-        padding:25px;
-
-    }
-
-    .user-info{
-
-        flex-direction:column;
-
-        align-items:flex-start;
-
-        gap:10px;
-
-    }
-
-    .user-footer{
-
-        flex-direction:column;
-
-    }
-
-    .btn-user{
-
-        justify-content:center;
-
-    }
-
-}
-</style>
 @endsection

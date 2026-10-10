@@ -1,748 +1,150 @@
-@extends('admin.layouts.app')
+@extends('admin.layouts.layout')
+
+@section('title', 'Fournisseurs')
+
+@php
+    // Numéro WhatsApp : chiffres uniquement, indicatif Haïti (509) ajouté pour les numéros locaux à 8 chiffres
+    $wa = function ($tel) {
+        $d = preg_replace('/\D+/', '', (string) $tel);
+        return strlen($d) === 8 ? '509'.$d : $d;
+    };
+    $total = method_exists($suppliers, 'total') ? $suppliers->total() : $suppliers->count();
+@endphp
 
 @section('content')
 
-<div class="supplier-page">
-
-
-    <!-- HEADER -->
-
-    <div class="supplier-header">
-
-
-        <div>
-
-            <h1>
-                Gestion des Fournisseurs
-            </h1>
-
-
-            <p>
-                Liste de tous les partenaires et fournisseurs du restaurant
-            </p>
-
-        </div>
-
-
-
-
-        <a href="/admin/suppliers/create"
-           class="supplier-btn">
-
-
-            <i class="fa-solid fa-truck-field"></i>
-
-            Nouveau Fournisseur
-
-
-        </a>
-
-
+<div class="page-head">
+    <div>
+        <h1>Fournisseurs</h1>
+        <p>{{ $total }} {{ $total > 1 ? 'partenaires' : 'partenaire' }} du restaurant</p>
     </div>
-
-
-
-
-
-
-
-    <!-- SUCCESS -->
-
-    @if(session('success'))
-
-
-    <div class="supplier-success">
-
-
-        <i class="fa-solid fa-circle-check"></i>
-
-        {{ session('success') }}
-
-
+    <div class="page-actions">
+        <a href="/admin/suppliers/create" class="btn btn-primary"><i data-lucide="plus"></i> Nouveau fournisseur</a>
     </div>
-
-
-    @endif
-
-
-
-
-
-
-
-    <!-- TABLE -->
-
-
-    <div class="supplier-table-card">
-
-
-        <table class="supplier-table">
-
-
-            <thead>
-
-
-                <tr>
-
-
-                    <th>
-                        Entreprise
-                    </th>
-
-
-                    <th>
-                        Contact
-                    </th>
-
-
-                    <th>
-                        Téléphone
-                    </th>
-
-
-                    <th>
-                        Produits Fournis
-                    </th>
-
-
-                    <th>
-                        Actions
-                    </th>
-
-
-                </tr>
-
-
-            </thead>
-
-
-
-
-
-            <tbody>
-
-
-
-            @forelse($suppliers as $sup)
-
-
-
-                <tr>
-
-
-
-                    <td>
-
-
-                        <div class="company-name">
-
-
-                            <div class="company-icon">
-
-                                <i class="fa-solid fa-building"></i>
-
-                            </div>
-
-
-                            {{ $sup->nom_entreprise }}
-
-
-                        </div>
-
-
-                    </td>
-
-
-
-
-
-
-                    <td>
-
-                        {{ $sup->nom_contact }}
-
-                    </td>
-
-
-
-
-
-                    <td>
-
-                        <span class="phone-badge">
-
-                            <i class="fa-solid fa-phone"></i>
-
-                            {{ $sup->telephone }}
-
-                        </span>
-
-
-                    </td>
-
-
-
-
-
-
-
-                    <td>
-
-
-                        <span class="product-badge">
-
-
-                            {{ $sup->produits_fournis ?? 'Général' }}
-
-
-                        </span>
-
-
-                    </td>
-
-
-
-
-
-
-
-
-                    <td>
-
-
-                        <div class="supplier-actions">
-
-
-
-                            <a href="/admin/suppliers/{{ $sup->id }}"
-                               class="action-view"
-                               title="Voir">
-
-
-                                <i class="fa-solid fa-eye"></i>
-
-
-                            </a>
-
-
-
-
-
-                            <a href="/admin/suppliers/{{ $sup->id }}/edit"
-                               class="action-edit"
-                               title="Modifier">
-
-
-                                <i class="fa-solid fa-pen-to-square"></i>
-
-
-                            </a>
-
-
-
-
-
-
-                            <form action="/admin/suppliers/{{ $sup->id }}"
-                                  method="POST"
-                                  onsubmit="return confirm('Voulez-vous vraiment supprimer ce fournisseur ?');">
-
-
-                                @csrf
-
-                                @method('DELETE')
-
-
-
-                                <button class="action-delete"
-                                        title="Supprimer">
-
-
-                                    <i class="fa-solid fa-trash"></i>
-
-
-                                </button>
-
-
-
-                            </form>
-
-
-
-
-                        </div>
-
-
-                    </td>
-
-
-
-                </tr>
-
-
-
-
-
-            @empty
-
-
-
-                <tr>
-
-
-                    <td colspan="5"
-                        class="empty-data">
-
-
-                        Aucun fournisseur enregistré pour le moment.
-
-
-                    </td>
-
-
-                </tr>
-
-
-
-            @endforelse
-
-
-
-            </tbody>
-
-
-
-        </table>
-
-
-    </div>
-
-
-
-
-
-
-
-    <!-- PAGINATION -->
-
-
-    <div class="supplier-pagination">
-
-
-        {{ $suppliers->links() }}
-
-
-    </div>
-
-
-
 </div>
-<style>
-    /*=================================
-    SUPPLIERS MANAGEMENT
-=================================*/
 
-
-.supplier-page{
-
-    padding:30px;
-
-}
-
-
-
-
-
-.supplier-header{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    margin-bottom:30px;
-
-}
-
-
-
-.supplier-header h1{
-
-    font-size:28px;
-
-    font-weight:900;
-
-    color:#1f2937;
-
-}
-
-
-
-.supplier-header p{
-
-    color:#6b7280;
-
-}
-
-
-
-
-
-.supplier-btn{
-
-    background:
-
-    linear-gradient(
-        135deg,
-        #f59e0b,
-        #d97706
-    );
-
-
-    color:white;
-
-    padding:13px 22px;
-
-    border-radius:14px;
-
-    font-weight:800;
-
-    text-decoration:none;
-
-    display:flex;
-
-    gap:10px;
-
-    align-items:center;
-
-    box-shadow:
-    0 10px 25px rgba(245,158,11,.25);
-
-    transition:.3s;
-
-}
-
-
-
-.supplier-btn:hover{
-
-    transform:translateY(-3px);
-
-}
-
-
-
-
-
-
-/* SUCCESS */
-
-
-.supplier-success{
-
-    background:#ecfdf5;
-
-    color:#047857;
-
-    border-left:5px solid #10b981;
-
-    padding:16px;
-
-    border-radius:15px;
-
-    margin-bottom:20px;
-
-    font-weight:700;
-
-}
-
-
-
-
-
-
-/* TABLE */
-
-
-.supplier-table-card{
-
-    background:white;
-
-    border-radius:22px;
-
-    overflow:hidden;
-
-    box-shadow:
-    0 15px 40px rgba(0,0,0,.08);
-
-    border:1px solid #e5e7eb;
-
-}
-
-
-
-.supplier-table{
-
-    width:100%;
-
-    border-collapse:collapse;
-
-}
-
-
-
-.supplier-table thead{
-
-    background:#f9fafb;
-
-}
-
-
-
-.supplier-table th{
-
-    padding:18px;
-
-    text-transform:uppercase;
-
-    font-size:12px;
-
-    color:#374151;
-
-}
-
-
-
-.supplier-table td{
-
-    padding:18px;
-
-    border-top:1px solid #f3f4f6;
-
-    color:#4b5563;
-
-}
-
-
-
-.supplier-table tbody tr{
-
-    transition:.3s;
-
-}
-
-
-
-.supplier-table tbody tr:hover{
-
-    background:#fffbeb;
-
-}
-
-
-
-
-
-
-
-/* COMPANY */
-
-
-.company-name{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:12px;
-
-    font-weight:800;
-
-    color:#111827;
-
-}
-
-
-
-.company-icon{
-
-    width:40px;
-
-    height:40px;
-
-    border-radius:12px;
-
-    background:#fef3c7;
-
-    color:#d97706;
-
-    display:flex;
-
-    justify-content:center;
-
-    align-items:center;
-
-}
-
-
-
-
-
-
-/* BADGES */
-
-
-.phone-badge{
-
-    background:#eff6ff;
-
-    color:#2563eb;
-
-    padding:7px 12px;
-
-    border-radius:30px;
-
-    font-size:13px;
-
-    font-weight:700;
-
-}
-
-
-
-.product-badge{
-
-    background:#fffbeb;
-
-    color:#b45309;
-
-    border:1px solid #fde68a;
-
-    padding:7px 14px;
-
-    border-radius:30px;
-
-    font-size:12px;
-
-    font-weight:800;
-
-}
-
-
-
-
-
-
-/* ACTIONS */
-
-
-.supplier-actions{
-
-    display:flex;
-
-    justify-content:center;
-
-    gap:15px;
-
-}
-
-
-
-.supplier-actions a,
-.action-delete{
-
-    font-size:18px;
-
-    transition:.3s;
-
-    border:none;
-
-    background:none;
-
-    cursor:pointer;
-
-}
-
-
-
-.supplier-actions a:hover,
-.action-delete:hover{
-
-    transform:scale(1.2);
-
-}
-
-
-
-.action-view{
-
-    color:#2563eb;
-
-}
-
-
-.action-edit{
-
-    color:#d97706;
-
-}
-
-
-.action-delete{
-
-    color:#dc2626;
-
-}
-
-
-
-
-
-.empty-data{
-
-    padding:40px;
-
-    text-align:center;
-
-    color:#6b7280;
-
-}
-
-
-
-
-
-@media(max-width:768px){
-
-
-.supplier-header{
-
-    flex-direction:column;
-
-    align-items:flex-start;
-
-    gap:20px;
-
-}
-
-
-
-.supplier-table-card{
-
-    overflow-x:auto;
-
-}
-
-
-.supplier-table{
-
-    min-width:900px;
-
-}
-
-
-}
-</style>
+@if(session('success'))
+    <div class="flash"><i data-lucide="check-circle-2"></i> {{ session('success') }}</div>
+@endif
+
+<div class="card">
+    <div class="toolbar">
+        <label class="search">
+            <i data-lucide="search"></i>
+            <input type="search" id="filterText" placeholder="Entreprise, contact, produit…">
+        </label>
+        <span class="count" id="filterCount"></span>
+    </div>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Entreprise</th>
+                    <th>Contact</th>
+                    <th>Produits</th>
+                    <th class="right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="supRows">
+                @forelse($suppliers as $sup)
+                    <tr data-search="{{ \Illuminate\Support\Str::lower($sup->nom_entreprise.' '.$sup->nom_contact.' '.$sup->produits_fournis.' '.$sup->telephone) }}">
+                        <td>
+                            <a href="/admin/suppliers/{{ $sup->id }}" class="cell-main">
+                                <span class="profile-avatar" style="width:36px;height:36px;font-size:14px;border-radius:9px">
+                                    {{ mb_strtoupper(mb_substr($sup->nom_entreprise, 0, 1)) }}
+                                </span>
+                                <strong>{{ $sup->nom_entreprise }}</strong>
+                            </a>
+                        </td>
+                        <td>
+                            <div style="font-weight:600">{{ $sup->nom_contact }}</div>
+                            @if($sup->telephone)
+                                <a href="tel:{{ preg_replace('/[^\d+]/', '', $sup->telephone) }}" class="muted num" style="font-size:12.5px">{{ $sup->telephone }}</a>
+                            @endif
+                        </td>
+                        <td style="white-space:normal; max-width:280px">
+                            @if($sup->produits_fournis)
+                                @foreach(array_filter(array_map('trim', preg_split('/[,;\/]+/', $sup->produits_fournis))) as $p)
+                                    <span class="tag">{{ $p }}</span>
+                                @endforeach
+                            @else
+                                <span class="muted">—</span>
+                            @endif
+                        </td>
+                        <td class="right">
+                            <div class="row-actions">
+                                @if($sup->telephone)
+                                    <a href="https://wa.me/{{ $wa($sup->telephone) }}" target="_blank" rel="noopener" class="icon-action" title="WhatsApp"><i data-lucide="message-circle"></i></a>
+                                @endif
+                                <a href="/admin/suppliers/{{ $sup->id }}/edit" class="icon-action" title="Modifier"><i data-lucide="pencil"></i></a>
+                                <form method="POST" action="/admin/suppliers/{{ $sup->id }}"
+                                      onsubmit="return confirm('Supprimer le fournisseur « {{ addslashes($sup->nom_entreprise) }} » ?');">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="icon-action danger" title="Supprimer"><i data-lucide="trash-2"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" class="empty">
+                            Aucun fournisseur enregistré.
+                            <a href="/admin/suppliers/create" class="link">Ajouter le premier</a>
+                        </td>
+                    </tr>
+                @endforelse
+                <tr id="noMatch" hidden><td colspan="4" class="empty">Aucun fournisseur ne correspond sur cette page.</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    {{-- Pagination --}}
+    @if($suppliers instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator && $suppliers->hasPages())
+        <div class="pager">
+            <span>{{ $suppliers->firstItem() }}–{{ $suppliers->lastItem() }} sur {{ $suppliers->total() }}</span>
+            <div class="pager-links">
+                @if($suppliers->onFirstPage())
+                    <span class="disabled" aria-hidden="true">‹</span>
+                @else
+                    <a href="{{ $suppliers->previousPageUrl() }}" aria-label="Page précédente">‹</a>
+                @endif
+
+                @foreach($suppliers->getUrlRange(max(1, $suppliers->currentPage() - 2), min($suppliers->lastPage(), $suppliers->currentPage() + 2)) as $page => $url)
+                    @if($page == $suppliers->currentPage())
+                        <span class="current">{{ $page }}</span>
+                    @else
+                        <a href="{{ $url }}">{{ $page }}</a>
+                    @endif
+                @endforeach
+
+                @if($suppliers->hasMorePages())
+                    <a href="{{ $suppliers->nextPageUrl() }}" aria-label="Page suivante">›</a>
+                @else
+                    <span class="disabled" aria-hidden="true">›</span>
+                @endif
+            </div>
+        </div>
+    @endif
+</div>
 
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const text  = document.getElementById('filterText');
+    const count = document.getElementById('filterCount');
+    const rows  = [...document.querySelectorAll('#supRows tr[data-search]')];
+    const none  = document.getElementById('noMatch');
+    function apply() {
+        const q = text.value.trim().toLowerCase();
+        let shown = 0;
+        rows.forEach(r => { const ok = !q || r.dataset.search.includes(q); r.hidden = !ok; if (ok) shown++; });
+        none.hidden = shown > 0 || rows.length === 0;
+        count.textContent = q && rows.length ? shown + ' sur ' + rows.length : '';
+    }
+    text.addEventListener('input', apply);
+})();
+</script>
+@endpush

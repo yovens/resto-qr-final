@@ -2,127 +2,65 @@
 
 namespace App\Http\Controllers\Kitchen;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Commande;
 use App\Events\OrderAcceptedEvent;
 use App\Events\OrderReadyEvent;
+use App\Http\Controllers\Controller;
+use App\Models\Commande;
+use Illuminate\Http\Request;
 
 class KitchenController extends Controller
 {
     /**
-     * Afficher les commandes en cuisine
+     * Statuts visibles sur l'écran cuisine.
+     */
+    private const STATUTS_CUISINE = ['nouvelle', 'en_preparation', 'prete'];
+
+    /**
+     * Écran cuisine : les commandes du plus ancien au plus récent
+     * (la cuisine traite dans l'ordre d'arrivée).
      */
     public function index()
     {
-        $commandes = Commande::with([
-            'items.plat',
-            'table'
-        ])
-        ->whereIn('statut', [
-            'nouvelle',
-            'en_preparation'
-        ])
-        ->latest()
-        ->get();
+        $commandes = Commande::with(['items.plat', 'table'])
+            ->whereIn('statut', self::STATUTS_CUISINE)
+            ->where('archived', false)
+            ->oldest()
+            ->get();
 
-        return view(
-            'kitchen.index',
-            compact('commandes')
-        );
+        return view('kitchen.index', compact('commandes'));
     }
 
-
     /**
-     * Mettre à jour le statut d'une commande
+     * Mettre à jour le statut d'une commande.
+     * Répond en JSON quand l'appel vient de l'écran cuisine (fetch),
+     * sinon redirige comme avant.
      */
     public function updateStatus(Request $request, $id)
     {
-        $commande = Commande::findOrFail($id);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Validation
-        |--------------------------------------------------------------------------
-        */
-
-        $request->validate([
-            'statut' => 'required|in:nouvelle,en_preparation,prete'
+        $data = $request->validate([
+            'statut' => 'required|in:nouvelle,en_preparation,prete,servie',
         ]);
 
+        $commande = Commande::with(['items.plat', 'table'])->findOrFail($id);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Nouveau statut
-        |--------------------------------------------------------------------------
-        */
-
-        $nouveauStatut = $request->statut;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Commande acceptée par la cuisine
-        |--------------------------------------------------------------------------
-        */
-
-        if ($nouveauStatut === 'en_preparation') {
-
-            $commande->statut = 'en_preparation';
-
+        if ($commande->statut !== $data['statut']) {
+            $commande->statut = $data['statut'];
             $commande->save();
 
-            broadcast(
-                new OrderAcceptedEvent($commande)
-            );
+            match ($data['statut']) {
+                'en_preparation' => broadcast(new OrderAcceptedEvent($commande)),
+                'prete'          => broadcast(new OrderReadyEvent($commande)),
+                default          => null,
+            };
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Commande prête
-        |--------------------------------------------------------------------------
-        |
-        | IMPORTANT :
-        | Le statut "prete" est celui utilisé par la caisse.
-        |
-        */
-
-        elseif ($nouveauStatut === 'prete') {
-
-            $commande->statut = 'prete';
-
-            $commande->save();
-
-            broadcast(
-                new OrderReadyEvent($commande)
-            );
+        if ($request->expectsJson()) {
+            return response()->json([
+                'id'     => $commande->id,
+                'statut' => $commande->statut,
+            ]);
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Autre statut
-        |--------------------------------------------------------------------------
-        */
-
-        else {
-
-            $commande->statut = $nouveauStatut;
-
-            $commande->save();
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Retour
-        |--------------------------------------------------------------------------
-        */
-
-        return back()->with(
-            'success',
-            'Statut de la commande mis à jour avec succès.'
-        );
+        return back()->with('success', 'Statut de la commande mis à jour.');
     }
 }

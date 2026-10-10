@@ -1,311 +1,78 @@
-@extends('admin.layouts.app')
+@extends('admin.layouts.layout')
+
+@section('title', $employe->prenom.' '.$employe->nom)
+
+@php
+    $roles = ['caissiere' => 'Caissière', 'serveur' => 'Serveur', 'serveuse' => 'Serveuse', 'cuisine' => 'Cuisinier', 'cuisinier' => 'Cuisinier'];
+    $roleLabel = $roles[$employe->role] ?? ucfirst((string) $employe->role);
+    $digits = preg_replace('/\D+/', '', (string) $employe->telephone);
+    $wa     = strlen($digits) === 8 ? '509'.$digits : $digits;
+    $tel    = preg_replace('/[^\d+]/', '', (string) $employe->telephone);
+@endphp
+
+@push('styles')
+<style>
+    .emp-photo { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
+    .emp-head .profile-avatar { width: 64px; height: 64px; border-radius: 50%; font-size: 22px; }
+</style>
+@endpush
 
 @section('content')
 
-<style>
+<a href="/admin/employes" class="back-link"><i data-lucide="arrow-left"></i> Employés</a>
 
-.employee-card{
-    max-width:950px;
-    margin:40px auto;
-    background:#fff;
-    border-radius:25px;
-    overflow:hidden;
-    box-shadow:0 15px 40px rgba(0,0,0,.08);
-}
-
-.employee-header{
-    background:linear-gradient(135deg,#f59e0b,#ea580c);
-    padding:40px;
-    text-align:center;
-    color:#fff;
-}
-
-.employee-photo{
-    width:150px;
-    height:150px;
-    border-radius:50%;
-    object-fit:cover;
-    border:6px solid rgba(255,255,255,.35);
-}
-
-.employee-avatar{
-    width:150px;
-    height:150px;
-    border-radius:50%;
-    background:white;
-    color:#ea580c;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    font-size:60px;
-    font-weight:bold;
-    margin:auto;
-    border:6px solid rgba(255,255,255,.35);
-}
-
-.employee-header h1{
-    margin-top:20px;
-    font-size:34px;
-}
-
-.role{
-    display:inline-block;
-    margin-top:12px;
-    padding:8px 20px;
-    border-radius:30px;
-    background:white;
-    color:#ea580c;
-    font-weight:bold;
-}
-
-.employee-body{
-    padding:35px;
-}
-
-.info-grid{
-    display:grid;
-    grid-template-columns:repeat(2,1fr);
-    gap:20px;
-}
-
-.info-card{
-    background:#f8fafc;
-    padding:22px;
-    border-radius:18px;
-    border-left:5px solid #f59e0b;
-}
-
-.info-card h4{
-    margin:0;
-    color:#6b7280;
-    font-size:14px;
-}
-
-.info-card p{
-    margin-top:8px;
-    font-size:18px;
-    font-weight:bold;
-    color:#111827;
-}
-
-.salary{
-    color:#16a34a;
-}
-
-.actions{
-    margin-top:35px;
-    display:flex;
-    justify-content:center;
-    gap:20px;
-}
-
-.btn{
-    padding:14px 28px;
-    border-radius:12px;
-    text-decoration:none;
-    font-weight:bold;
-    transition:.3s;
-}
-
-.btn-back{
-    background:#e5e7eb;
-    color:#374151;
-}
-
-.btn-edit{
-    background:linear-gradient(135deg,#f59e0b,#ea580c);
-    color:white;
-}
-
-.btn-delete{
-    background:#dc2626;
-    color:white;
-    border:none;
-    cursor:pointer;
-}
-
-.btn:hover{
-    transform:translateY(-3px);
-}
-
-@media(max-width:768px){
-
-.info-grid{
-grid-template-columns:1fr;
-}
-
-.employee-card{
-margin:15px;
-}
-
-.actions{
-flex-direction:column;
-}
-
-}
-.employee-header{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    margin-bottom:35px;
-}
-
-.employee-photo{
-    width:160px;
-    height:160px;
-    border-radius:50%;
-    object-fit:cover;
-    border:6px solid #f59e0b;
-    box-shadow:0 10px 30px rgba(0,0,0,.18);
-    margin-bottom:18px;
-    background:#fff;
-}
-
-.employee-avatar{
-    width:160px;
-    height:160px;
-    border-radius:50%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:linear-gradient(135deg,#f59e0b,#fbbf24);
-    color:#fff;
-    font-size:60px;
-    font-weight:700;
-    box-shadow:0 10px 30px rgba(0,0,0,.18);
-    margin-bottom:18px;
-}
-
-.employee-header h1{
-    margin:0;
-    font-size:30px;
-    font-weight:700;
-    color:#1f2937;
-}
-
-.employee-header .role{
-    margin-top:10px;
-    background:#fff3cd;
-    color:#b45309;
-    padding:8px 22px;
-    border-radius:30px;
-    font-weight:700;
-    text-transform:capitalize;
-    letter-spacing:.5px;
-}
-</style>
-
-<div class="employee-card">
-
-<div class="employee-header">
-
-    @if($employe->photo)
-
-        <img
-            src="{{ asset($employe->photo) }}"
-            alt="{{ $employe->prenom }}"
-            class="employee-photo">
-
-    @else
-
-        <div class="employee-avatar">
-            {{ strtoupper(substr($employe->prenom,0,1)) }}
+<div class="card" style="max-width: 760px">
+    <div class="profile-head emp-head">
+        @if($employe->photo)
+            <img src="{{ asset($employe->photo) }}" alt="" class="emp-photo">
+        @else
+            <span class="profile-avatar">{{ mb_strtoupper(mb_substr($employe->prenom, 0, 1).mb_substr($employe->nom, 0, 1)) }}</span>
+        @endif
+        <div style="min-width:0">
+            <h2>{{ $employe->prenom }} {{ $employe->nom }}</h2>
+            <p>{{ $roleLabel }}</p>
         </div>
-
-    @endif
-
-    <h1>{{ $employe->prenom }} {{ $employe->nom }}</h1>
-
-    <span class="role">
-        {{ ucfirst($employe->role) }}
-    </span>
-
-</div>
-
-    <div class="employee-body">
-
-        <div class="info-grid">
-
-            <div class="info-card">
-                <h4>Adresse e-mail</h4>
-                <p>{{ $employe->email }}</p>
-            </div>
-
-            <div class="info-card">
-                <h4>Téléphone</h4>
-                <p>{{ $employe->telephone }}</p>
-            </div>
-
-            <div class="info-card">
-                <h4>Salaire mensuel</h4>
-                <p class="salary">
-                    {{ number_format($employe->salaire,2) }} HTG
-                </p>
-            </div>
-
-            <div class="info-card">
-                <h4>Date d'embauche</h4>
-                <p>
-                    {{ $employe->created_at->format('d/m/Y') }}
-                </p>
-            </div>
-
-            <div class="info-card">
-                <h4>Identifiant</h4>
-                <p>#{{ $employe->id }}</p>
-            </div>
-
-            <div class="info-card">
-                <h4>Statut</h4>
-
-                <p style="color:#16a34a">
-                    ● Actif
-                </p>
-
-            </div>
-
-        </div>
-
-        <div class="actions">
-
-            <a
-            href="{{ url('/admin/employes') }}"
-            class="btn btn-back">
-
-                ← Retour
-
-            </a>
-
-            <a
-            href="{{ url('/admin/employes/'.$employe->id.'/edit') }}"
-            class="btn btn-edit">
-
-                ✏ Modifier
-
-            </a>
-
-            <form
-            action="{{ url('/admin/employes/'.$employe->id) }}"
-            method="POST"
-            onsubmit="return confirm('Supprimer cet employé ?')">
-
-                @csrf
-                @method('DELETE')
-
-                <button
-                class="btn btn-delete">
-
-                    🗑 Supprimer
-
-                </button>
-
-            </form>
-
-        </div>
-
+        <a href="/admin/employes/{{ $employe->id }}/edit" class="btn" style="margin-left:auto"><i data-lucide="pencil"></i> Modifier</a>
     </div>
 
+    <dl class="dl">
+        <div>
+            <dt><i data-lucide="briefcase"></i> Fonction</dt>
+            <dd>{{ $roleLabel }}</dd>
+        </div>
+        <div>
+            <dt><i data-lucide="phone"></i> Téléphone</dt>
+            <dd class="num">
+                @if($employe->telephone)<a href="tel:{{ $tel }}">{{ $employe->telephone }}</a>@else<span class="empty-val">—</span>@endif
+            </dd>
+        </div>
+        <div>
+            <dt><i data-lucide="mail"></i> E-mail</dt>
+            <dd>
+                @if($employe->email)<a href="mailto:{{ $employe->email }}" class="link" style="font-size:inherit">{{ $employe->email }}</a>@else<span class="empty-val">—</span>@endif
+            </dd>
+        </div>
+        <div>
+            <dt><i data-lucide="banknote"></i> Salaire mensuel</dt>
+            <dd class="num">{{ number_format((float) $employe->salaire, 0, ',', ' ') }} HTG</dd>
+        </div>
+        <div>
+            <dt><i data-lucide="calendar"></i> Ajouté le</dt>
+            <dd>{{ $employe->created_at?->locale('fr')->isoFormat('LL') }}</dd>
+        </div>
+    </dl>
+
+    <div class="quick-actions">
+        @if($employe->telephone)
+            <a href="tel:{{ $tel }}" class="btn"><i data-lucide="phone"></i> Appeler</a>
+            <a href="https://wa.me/{{ $wa }}" target="_blank" rel="noopener" class="btn"><i data-lucide="message-circle"></i> WhatsApp</a>
+        @endif
+        <form method="POST" action="{{ url('/admin/employes/'.$employe->id) }}" style="margin-left:auto"
+              onsubmit="return confirm('Supprimer {{ addslashes($employe->prenom.' '.$employe->nom) }} ? Cette action est définitive.');">
+            @csrf @method('DELETE')
+            <button type="submit" class="btn" style="color: var(--danger)"><i data-lucide="trash-2"></i> Supprimer</button>
+        </form>
+    </div>
 </div>
 
 @endsection

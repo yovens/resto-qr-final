@@ -1,918 +1,248 @@
-@extends('admin.layouts.app')
+@extends('admin.layouts.layout')
+
+@section('title', 'Rapports')
+
+@php
+    $fmt = fn ($n) => number_format((float) $n, 0, ',', ' ');
+
+    $months = [
+        '01' => 'Janvier', '02' => 'Février', '03' => 'Mars',      '04' => 'Avril',
+        '05' => 'Mai',     '06' => 'Juin',    '07' => 'Juillet',   '08' => 'Août',
+        '09' => 'Septembre', '10' => 'Octobre', '11' => 'Novembre', '12' => 'Décembre',
+    ];
+    $selMonth = str_pad((string) $selectedMonth, 2, '0', STR_PAD_LEFT);
+
+    // Les 12 mois de l'année, y compris ceux sans vente
+    $stats = collect($monthlyStats)->keyBy(fn ($s) => str_pad((string) $s->mois, 2, '0', STR_PAD_LEFT));
+    $rows = collect($months)->map(fn ($nom, $num) => (object) [
+        'num'       => $num,
+        'nom'       => $nom,
+        'commandes' => (int)   ($stats[$num]->total_commandes ?? 0),
+        'ventes'    => (float) ($stats[$num]->total_ventes ?? 0),
+    ]);
+
+    $totalCmdAnnee = $rows->sum('commandes');
+    $ticketMois    = $commandesMoisCount > 0 ? $ventesMois / $commandesMoisCount : 0;
+    $moisActifs    = $rows->where('ventes', '>', 0)->count();
+    $moyenneMois   = $moisActifs > 0 ? $ventesAnnee / $moisActifs : 0;
+    $meilleur      = $rows->sortByDesc('ventes')->first();
+@endphp
+
+@push('styles')
+<style>
+    .share { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+    .share-bar { width: 70px; height: 5px; border-radius: 3px; background: var(--bg); overflow: hidden; }
+    .share-bar span { display: block; height: 100%; background: var(--brand); }
+    .table tr.is-selected td { background: var(--brand-50); }
+    .table tr.is-empty td { color: var(--text-3); }
+    .table tfoot td { border-top: 1px solid var(--border-strong); font-weight: 800; padding: 12px 20px; }
+
+    @media print {
+        .sidebar, .topbar, .page-actions, .no-print { display: none !important; }
+        .main { margin: 0 !important; }
+        .content { padding: 0 !important; max-width: none; }
+        body { background: #fff; }
+        .card { break-inside: avoid; }
+        .print-title { display: block !important; }
+    }
+</style>
+@endpush
 
 @section('content')
 
-<div class="reports-page">
+<div class="print-title" style="display:none; margin-bottom:12px">
+    <strong style="font-size:18px">Resto Kay-Y — Rapport {{ $months[$selMonth] ?? '' }} {{ $selectedYear }}</strong><br>
+    <span class="muted">Édité le {{ now()->format('d/m/Y à H:i') }}</span>
+</div>
 
-    <!-- ==========================================
-                    HEADER
-    =========================================== -->
+<div class="page-head">
+    <div>
+        <h1>Rapports</h1>
+        <p>{{ $months[$selMonth] ?? '' }} {{ $selectedYear }} · vue mensuelle et annuelle</p>
+    </div>
 
-    <div class="reports-header">
-
-        <div class="reports-title">
-
-            <div class="reports-icon">
-                <i class="fa-solid fa-chart-pie"></i>
-            </div>
-
-            <div>
-
-                <h1>Rapport Global & Financier</h1>
-
-                <p>
-                    Consultez les performances financières du restaurant,
-                    les ventes mensuelles, annuelles ainsi que les statistiques
-                    générales des commandes.
-                </p>
-
-            </div>
-
-        </div>
-
-        <!-- FILTRES -->
-
-        <form action="/admin/reports"
-              method="GET"
-              class="filter-form">
-
-            <div class="filter-group">
-
-                @php
-
-                    $months = [
-
-                        '01'=>'Janvier',
-                        '02'=>'Février',
-                        '03'=>'Mars',
-                        '04'=>'Avril',
-                        '05'=>'Mai',
-                        '06'=>'Juin',
-                        '07'=>'Juillet',
-                        '08'=>'Août',
-                        '09'=>'Septembre',
-                        '10'=>'Octobre',
-                        '11'=>'Novembre',
-                        '12'=>'Décembre'
-
-                    ];
-
-                @endphp
-
-                <select name="month"
-                        class="filter-select"
-                        onchange="this.form.submit()">
-
-                    @foreach($months as $num => $name)
-
-                        <option value="{{ $num }}"
-                            {{ $selectedMonth==$num ? 'selected' : '' }}>
-
-                            {{ $name }}
-
-                        </option>
-
-                    @endforeach
-
-                </select>
-
-                <select name="year"
-                        class="filter-select"
-                        onchange="this.form.submit()">
-
-                    @foreach($years as $yr)
-
-                        <option value="{{ $yr }}"
-                            {{ $selectedYear==$yr ? 'selected' : '' }}>
-
-                            {{ $yr }}
-
-                        </option>
-
-                    @endforeach
-
-                </select>
-
-            </div>
-
+    <div class="page-actions">
+        <form action="/admin/reports" method="GET" class="filters">
+            <select name="month" class="select" onchange="this.form.submit()">
+                @foreach($months as $num => $name)
+                    <option value="{{ $num }}" @selected($selMonth === $num)>{{ $name }}</option>
+                @endforeach
+            </select>
+            <select name="year" class="select" onchange="this.form.submit()">
+                @foreach($years as $yr)
+                    <option value="{{ $yr }}" @selected($selectedYear == $yr)>{{ $yr }}</option>
+                @endforeach
+            </select>
+            <noscript><button type="submit" class="btn">Afficher</button></noscript>
         </form>
-
+        <button type="button" class="btn" onclick="window.print()"><i data-lucide="printer"></i> Imprimer</button>
     </div>
+</div>
 
-    <!-- ==========================================
-                    STATS
-    =========================================== -->
-
-    <div class="stats-grid">
-
-        <div class="stat-card">
-
-            <div class="stat-info">
-
-                <h2>
-                    {{ number_format($ventesMois,2) }}
-                    HTG
-                </h2>
-
-                <p>Ventes du mois</p>
-
-            </div>
-
-            <div class="stat-icon green">
-
-                <i class="fa-solid fa-calendar-days"></i>
-
-            </div>
-
+{{-- Indicateurs --}}
+<section class="kpis">
+    <article class="card kpi">
+        <div class="kpi-top">
+            <span class="kpi-label">Ventes · {{ $months[$selMonth] ?? '' }}</span>
+            <span class="kpi-icon"><i data-lucide="calendar"></i></span>
         </div>
+        <div class="kpi-value num">{{ $fmt($ventesMois) }}<span class="unit">HTG</span></div>
+        <div class="kpi-foot"><span>{{ $commandesMoisCount }} commandes</span><span class="num">{{ $fmt($ticketMois) }} HTG / cmd</span></div>
+    </article>
 
-        <div class="stat-card">
-
-            <div class="stat-info">
-
-                <h2>
-
-                    {{ number_format($ventesAnnee,2) }}
-
-                    HTG
-
-                </h2>
-
-                <p>
-
-                    Ventes {{ $selectedYear }}
-
-                </p>
-
-            </div>
-
-            <div class="stat-icon orange">
-
-                <i class="fa-solid fa-chart-line"></i>
-
-            </div>
-
+    <article class="card kpi">
+        <div class="kpi-top">
+            <span class="kpi-label">Ventes · {{ $selectedYear }}</span>
+            <span class="kpi-icon"><i data-lucide="trending-up"></i></span>
         </div>
+        <div class="kpi-value num">{{ $fmt($ventesAnnee) }}<span class="unit">HTG</span></div>
+        <div class="kpi-foot"><span>{{ $totalCmdAnnee }} commandes</span></div>
+    </article>
 
-        <div class="stat-card">
-
-            <div class="stat-info">
-
-                <h2>
-
-                    {{ number_format($totalVentesGlobal,2) }}
-
-                    HTG
-
-                </h2>
-
-                <p>
-
-                    Chiffre d'affaires
-
-                </p>
-
-            </div>
-
-            <div class="stat-icon blue">
-
-                <i class="fa-solid fa-wallet"></i>
-
-            </div>
-
+    <article class="card kpi">
+        <div class="kpi-top">
+            <span class="kpi-label">Moyenne mensuelle</span>
+            <span class="kpi-icon"><i data-lucide="calculator"></i></span>
         </div>
+        <div class="kpi-value num">{{ $fmt($moyenneMois) }}<span class="unit">HTG</span></div>
+        <div class="kpi-foot"><span>sur {{ $moisActifs }} {{ $moisActifs > 1 ? 'mois actifs' : 'mois actif' }}</span></div>
+    </article>
 
-        <div class="stat-card">
-
-            <div class="stat-info">
-
-                <h2>
-
-                    {{ $commandesMoisCount }}
-
-                </h2>
-
-                <p>
-
-                    Commandes du mois
-
-                </p>
-
-            </div>
-
-            <div class="stat-icon red">
-
-                <i class="fa-solid fa-receipt"></i>
-
-            </div>
-
+    <article class="card kpi">
+        <div class="kpi-top">
+            <span class="kpi-label">Chiffre d'affaires total</span>
+            <span class="kpi-icon"><i data-lucide="wallet"></i></span>
         </div>
+        <div class="kpi-value num">{{ $fmt($totalVentesGlobal) }}<span class="unit">HTG</span></div>
+        <div class="kpi-foot"><span>depuis l'ouverture</span></div>
+    </article>
+</section>
 
-    </div>
-<!-- ==========================================
-                GRAPHIQUE DES VENTES
-=========================================== -->
-
-<div class="report-card chart-card">
-
-    <div class="card-header">
-
+{{-- Graphique --}}
+<article class="card" style="margin-bottom: 16px">
+    <div class="card-head">
         <div>
-            <h2>
-                <i class="fa-solid fa-chart-line"></i>
-                Évolution des ventes
-            </h2>
-
-            <p>
-                Performance mensuelle de l'année {{ $selectedYear }}
-            </p>
-        </div>
-
-    </div>
-
-
-    <div class="chart-container">
-
-        <canvas id="salesChart"></canvas>
-
-    </div>
-
-</div>
-    <!-- ==========================================
-                    RAPPORT MENSUEL
-    =========================================== -->
-
-    <div class="report-card">
-
-        <div class="card-header">
-
-            <div>
-
-                <h2>
-
-                    <i class="fa-solid fa-chart-column"></i>
-
-                    Résumé Mensuel
-
-                </h2>
-
-                <p>
-
-                    Année :
-
-                    <strong>{{ $selectedYear }}</strong>
-
-                </p>
-
-            </div>
-
-            <span class="badge-count">
-
-                {{ count($monthlyStats) }}
-
-                Mois
-
+            <h2>Ventes mensuelles {{ $selectedYear }}</h2>
+            <span class="sub">
+                En HTG
+                @if($meilleur && $meilleur->ventes > 0) · meilleur mois : {{ $meilleur->nom }} ({{ $fmt($meilleur->ventes) }} HTG) @endif
             </span>
-
         </div>
+    </div>
+    <div class="card-body">
+        <div class="chart-box" style="height: 300px"><canvas id="salesChart"></canvas></div>
+    </div>
+</article>
 
-        <div class="table-responsive">
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>Mois</th>
-
-                        <th>Nombre de commandes</th>
-
-                        <th class="text-right">
-
-                            Chiffre d'affaires
-
-                        </th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                @forelse($monthlyStats as $stat)
-
-                    <tr>
-
-                        <td>
-
-                            <strong>
-
-                                {{ $months[str_pad($stat->mois,2,'0',STR_PAD_LEFT)] ?? $stat->mois }}
-
-                            </strong>
-
-                        </td>
-
-                        <td>
-
-                            <span class="badge-blue">
-
-                                {{ $stat->total_commandes }}
-
-                                commandes
-
-                            </span>
-
-                        </td>
-
-                        <td class="text-right">
-
-                            <strong class="amount">
-
-                                {{ number_format($stat->total_ventes,2) }}
-
-                                HTG
-
-                            </strong>
-
-                        </td>
-
-                    </tr>
-
-                @empty
-
-                    <tr>
-
-                        <td colspan="3">
-
-                            <div class="empty-box">
-
-                                <i class="fa-solid fa-folder-open"></i>
-
-                                <h3>
-
-                                    Aucun rapport disponible
-
-                                </h3>
-
-                                <p>
-
-                                    Aucune commande payée n'a été enregistrée
-                                    durant l'année
-
-                                    {{ $selectedYear }}.
-
-                                </p>
-
-                            </div>
-
-                        </td>
-
-                    </tr>
-
-                @endforelse
-
-                </tbody>
-
-            </table>
-
+{{-- Résumé mensuel --}}
+<article class="card">
+    <div class="card-head" style="padding-bottom: 12px">
+        <div>
+            <h2>Résumé mensuel</h2>
+            <span class="sub">Année {{ $selectedYear }}</span>
         </div>
-
     </div>
 
-</div>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-
-<script>
-
-const ctx = document.getElementById('salesChart');
-
-
-new Chart(ctx, {
-
-    type: 'line',
-
-
-    data: {
-
-        labels: [
-
-            @foreach($monthlyStats as $stat)
-
-                "{{ $months[str_pad($stat->mois,2,'0',STR_PAD_LEFT)] ?? $stat->mois }}",
-
-            @endforeach
-
-        ],
-
-
-        datasets: [
-
-            {
-
-                label: "Ventes HTG",
-
-                data: [
-
-                    @foreach($monthlyStats as $stat)
-
-                        {{ $stat->total_ventes }},
-
+    @if($ventesAnnee <= 0)
+        <div class="empty">Aucune commande payée enregistrée en {{ $selectedYear }}.</div>
+    @else
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Mois</th>
+                        <th class="right">Commandes</th>
+                        <th class="right">Ticket moyen</th>
+                        <th class="right">Chiffre d'affaires</th>
+                        <th class="right">Part de l'année</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($rows as $r)
+                        @php $part = $ventesAnnee > 0 ? $r->ventes / $ventesAnnee * 100 : 0; @endphp
+                        <tr class="{{ $r->num === $selMonth ? 'is-selected' : '' }} {{ $r->ventes <= 0 ? 'is-empty' : '' }}">
+                            <td><strong>{{ $r->nom }}</strong></td>
+                            <td class="right num">{{ $r->commandes ?: '—' }}</td>
+                            <td class="right num">{{ $r->commandes ? $fmt($r->ventes / $r->commandes) : '—' }}</td>
+                            <td class="right num">
+                                @if($r->ventes > 0)<strong>{{ $fmt($r->ventes) }}</strong> <span class="muted">HTG</span>@else — @endif
+                            </td>
+                            <td class="right">
+                                <div class="share">
+                                    <span class="num muted">{{ $part > 0 ? round($part, 1).' %' : '' }}</span>
+                                    <span class="share-bar"><span style="width: {{ $part }}%"></span></span>
+                                </div>
+                            </td>
+                        </tr>
                     @endforeach
-
-                ],
-
-
-                borderWidth:3,
-
-                tension:0.4,
-
-                fill:true,
-
-                backgroundColor:"rgba(37,99,235,0.15)",
-
-                borderColor:"#2563eb",
-
-                pointRadius:5,
-
-                pointBackgroundColor:"#2563eb"
-
-            }
-
-        ]
-
-    },
-
-
-    options:{
-
-
-        responsive:true,
-
-
-        maintainAspectRatio:false,
-
-
-        plugins:{
-
-
-            legend:{
-
-
-                display:true,
-
-
-                position:'top'
-
-
-            }
-
-        },
-
-
-        scales:{
-
-
-            y:{
-
-
-                beginAtZero:true,
-
-
-                ticks:{
-
-
-                    callback:function(value){
-
-                        return value+" HTG";
-
-                    }
-
-
-                }
-
-            }
-
-        }
-
-    }
-
-
-});
-
-</script>
-<style>
-/* =========================================
-        GRAPHIQUE RAPPORT
-========================================= */
-
-
-.report-card{
-
-    background:white;
-
-    border-radius:22px;
-
-    overflow:hidden;
-
-    box-shadow:0 15px 40px rgba(0,0,0,.06);
-
-    border:1px solid #ececec;
-
-    margin-bottom:35px;
-
-}
-
-
-
-.chart-card{
-
-    padding-bottom:25px;
-
-}
-
-
-
-.chart-container{
-
-    height:380px;
-
-    padding:25px 35px;
-
-}
-
-
-
-.chart-container canvas{
-
-    width:100%!important;
-
-    height:100%!important;
-
-}
-
-
-
-/* Animation */
-
-.chart-card{
-
-    animation:fadeChart .5s ease;
-
-}
-
-
-
-@keyframes fadeChart{
-
-
-    from{
-
-        opacity:0;
-
-        transform:translateY(20px);
-
-    }
-
-
-    to{
-
-        opacity:1;
-
-        transform:translateY(0);
-
-    }
-
-
-}
-    /* Collez ici le CSS du rapport fourni précédemment */
-/*=========================================
-            RAPPORTS PAGE
-=========================================*/
-
-.reports-page,
-.notifications-page{
-    width:100%;
-    padding:30px;
-}
-
-/*=========================================
-            HEADER
-=========================================*/
-
-.notifications-header{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:20px;
-    flex-wrap:wrap;
-    margin-bottom:35px;
-}
-
-.notifications-title{
-    display:flex;
-    align-items:center;
-    gap:20px;
-}
-
-.notifications-icon{
-    width:80px;
-    height:80px;
-    border-radius:22px;
-    background:linear-gradient(135deg,#2563eb,#1d4ed8);
-    color:#fff;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:34px;
-    box-shadow:0 15px 35px rgba(37,99,235,.25);
-}
-
-.notifications-title h1{
-    font-size:30px;
-    color:#1f2937;
-    font-weight:800;
-    margin-bottom:6px;
-}
-
-.notifications-title p{
-    color:#6b7280;
-    font-size:15px;
-    line-height:1.6;
-}
-
-/*=========================================
-            FILTER
-=========================================*/
-
-.filter-form{
-    display:flex;
-    gap:15px;
-}
-
-.filter-group{
-    display:flex;
-    gap:15px;
-}
-
-.filter-select{
-    min-width:170px;
-    padding:13px 18px;
-    border-radius:14px;
-    border:1px solid #d1d5db;
-    background:#fff;
-    font-size:15px;
-    font-weight:600;
-    cursor:pointer;
-    transition:.35s;
-}
-
-.filter-select:focus{
-    outline:none;
-    border-color:#2563eb;
-    box-shadow:0 0 0 4px rgba(37,99,235,.15);
-}
-
-/*=========================================
-            STATS
-=========================================*/
-
-.stats-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-    gap:25px;
-    margin-bottom:35px;
-}
-
-.stat-card{
-    background:#fff;
-    border-radius:20px;
-    padding:25px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    box-shadow:0 15px 40px rgba(0,0,0,.06);
-    transition:.35s;
-    border:1px solid #ececec;
-}
-
-.stat-card:hover{
-    transform:translateY(-8px);
-}
-
-.stat-info h2{
-    font-size:30px;
-    font-weight:800;
-    color:#111827;
-    margin-bottom:8px;
-}
-
-.stat-info p{
-    color:#6b7280;
-    font-weight:600;
-}
-
-.stat-icon{
-    width:72px;
-    height:72px;
-    border-radius:18px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    color:white;
-    font-size:28px;
-}
-
-.green{
-    background:linear-gradient(135deg,#10b981,#059669);
-}
-
-.orange{
-    background:linear-gradient(135deg,#f59e0b,#d97706);
-}
-
-.blue{
-    background:linear-gradient(135deg,#3b82f6,#2563eb);
-}
-
-.red{
-    background:linear-gradient(135deg,#ef4444,#dc2626);
-}
-
-/*=========================================
-            CARD
-=========================================*/
-
-.notification-card{
-    background:white;
-    border-radius:22px;
-    overflow:hidden;
-    box-shadow:0 15px 40px rgba(0,0,0,.06);
-    border:1px solid #ececec;
-}
-
-.card-header{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:22px 30px;
-    background:#fafafa;
-    border-bottom:1px solid #ececec;
-}
-
-.card-header h2{
-    font-size:22px;
-    font-weight:800;
-    color:#1f2937;
-}
-
-.badge-count{
-    background:#2563eb;
-    color:#fff;
-    padding:8px 18px;
-    border-radius:30px;
-    font-weight:700;
-    font-size:13px;
-}
-
-/*=========================================
-            TABLE
-=========================================*/
-
-.table-responsive{
-    overflow-x:auto;
-}
-
-table{
-    width:100%;
-    border-collapse:collapse;
-}
-
-thead{
-    background:#f8fafc;
-}
-
-thead th{
-    padding:18px;
-    color:#6b7280;
-    text-transform:uppercase;
-    font-size:13px;
-    letter-spacing:1px;
-}
-
-tbody td{
-    padding:18px;
-    border-top:1px solid #f1f5f9;
-}
-
-tbody tr{
-    transition:.3s;
-}
-
-tbody tr:hover{
-    background:#f9fbff;
-}
-
-.text-right{
-    text-align:right;
-}
-
-/*=========================================
-            BADGES
-=========================================*/
-
-.badge-blue{
-    background:#dbeafe;
-    color:#1d4ed8;
-    padding:8px 15px;
-    border-radius:25px;
-    font-size:13px;
-    font-weight:700;
-}
-
-.salary{
-    color:#059669;
-    font-size:17px;
-    font-weight:800;
-}
-
-/*=========================================
-            EMPTY
-=========================================*/
-
-.empty-box{
-    padding:60px 20px;
-    text-align:center;
-}
-
-.empty-box i{
-    font-size:60px;
-    color:#cbd5e1;
-    margin-bottom:20px;
-}
-
-.empty-box h3{
-    font-size:22px;
-    color:#374151;
-    margin-bottom:10px;
-}
-
-.empty-box p{
-    color:#6b7280;
-}
-
-/*=========================================
-            RESPONSIVE
-=========================================*/
-
-@media(max-width:992px){
-
-.notifications-header{
-    flex-direction:column;
-    align-items:flex-start;
-}
-
-.filter-group{
-    width:100%;
-}
-
-.filter-select{
-    width:100%;
-}
-
-}
-
-@media(max-width:768px){
-
-.notifications-title{
-    flex-direction:column;
-    text-align:center;
-}
-
-.notifications-title h1{
-    font-size:24px;
-}
-
-.stats-grid{
-    grid-template-columns:1fr;
-}
-
-.card-header{
-    flex-direction:column;
-    gap:10px;
-    align-items:flex-start;
-}
-
-table{
-    min-width:700px;
-}
-
-}
-</style>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td>Total {{ $selectedYear }}</td>
+                        <td class="right num">{{ $totalCmdAnnee }}</td>
+                        <td class="right num">{{ $totalCmdAnnee ? $fmt($ventesAnnee / $totalCmdAnnee) : '—' }}</td>
+                        <td class="right num">{{ $fmt($ventesAnnee) }} <span class="muted">HTG</span></td>
+                        <td class="right num">100 %</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    @endif
+</article>
 
 @endsection
 
+@push('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function () {
+    const canvas = document.getElementById('salesChart');
+    if (!canvas || !window.Chart) return;
 
+    const labels   = @json($rows->map(fn ($r) => mb_substr($r->nom, 0, 3))->values());
+    const values   = @json($rows->pluck('ventes')->values());
+    const selected = @json(array_search($selMonth, array_keys($months)));
 
+    const css = getComputedStyle(document.documentElement);
+    const v = (n) => css.getPropertyValue(n).trim();
+
+    Chart.defaults.font.family = v('--font');
+    Chart.defaults.color = v('--text-3');
+
+    new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: values.map((_, i) => i === selected ? v('--brand-600') : v('--brand')),
+                borderRadius: 5,
+                maxBarThickness: 42,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: v('--text'),
+                    padding: 10,
+                    displayColors: false,
+                    callbacks: { label: (c) => c.parsed.y.toLocaleString('fr-FR') + ' HTG' }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, border: { display: false } },
+                y: {
+                    beginAtZero: true,
+                    border: { display: false },
+                    grid: { color: v('--border') },
+                    ticks: { maxTicksLimit: 5, callback: (n) => n >= 1000 ? (n / 1000) + 'k' : n }
+                }
+            }
+        }
+    });
+})();
+</script>
+@endpush

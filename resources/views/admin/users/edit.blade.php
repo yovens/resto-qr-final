@@ -1,398 +1,122 @@
-@extends('admin.layouts.app')
+@extends('admin.layouts.layout')
+
+@section('title', 'Modifier · '.$user->name)
+
+@push('styles')
+<style>
+    .segmented.roles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (max-width: 560px) { .segmented.roles { grid-template-columns: 1fr; } }
+</style>
+@endpush
 
 @section('content')
 
-<div class="user-edit-page">
-
-    <div class="user-edit-card">
-
-        <!-- HEADER -->
-
-        <div class="user-edit-header">
-
-            <div class="user-edit-icon">
-                <i class="fa-solid fa-user-pen"></i>
-            </div>
-
-            <div>
-                <h1>Modifier l'Utilisateur</h1>
-                <p>Modifiez les informations et les droits d'accès de cet utilisateur.</p>
-            </div>
-
-        </div>
-
-        <!-- ERREURS -->
-
-        @if($errors->any())
-
-        <div class="user-error">
-
-            <strong>
-                <i class="fa-solid fa-circle-exclamation"></i>
-                Des erreurs ont été détectées :
-            </strong>
-
-            <ul>
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-
-        </div>
-
-        @endif
-
-        <!-- FORMULAIRE -->
-
-        <form action="/admin/users/{{ $user->id }}"
-              method="POST"
-              class="user-form">
-
-            @csrf
-            @method('PUT')
-
-            <!-- NOM -->
-
-            <div class="form-group">
-
-                <label>
-                    Nom complet
-                </label>
-
-                <input type="text"
-                       name="name"
-                       value="{{ old('name', $user->name) }}"
-                       placeholder="Nom complet"
-                       required>
-
-            </div>
-
-            <!-- EMAIL + TELEPHONE -->
-
-            <div class="form-row">
-
-                <div class="form-group">
-
-                    <label>
-                        Adresse Email
-                    </label>
-
-                    <input type="email"
-                           name="email"
-                           value="{{ old('email', $user->email) }}"
-                           placeholder="email@restaurant.com"
-                           required>
-
-                </div>
-
-                <div class="form-group">
-
-                    <label>
-                        Téléphone
-                    </label>
-
-                    <input type="text"
-                           name="telephone"
-                           value="{{ old('telephone', $user->telephone) }}"
-                           placeholder="+509 ..."
-                    >
-
-                </div>
-
-            </div>
-
-            <!-- ROLE + PASSWORD -->
-
-            <div class="form-row">
-
-                <div class="form-group">
-
-                    <label>
-                        Rôle
-                    </label>
-
-                    <select name="role" required>
-
-                        <option value="admin" {{ $user->role=='admin' ? 'selected' : '' }}>
-                            👑 Administrateur
-                        </option>
-
-                        <option value="caissier" {{ $user->role=='caissier' ? 'selected' : '' }}>
-                            💰 Caissier
-                        </option>
-
-                        <option value="cuisinier" {{ $user->role=='cuisinier' ? 'selected' : '' }}>
-                            👨‍🍳 Cuisinier
-                        </option>
-
-                        <option value="serveur" {{ $user->role=='serveur' ? 'selected' : '' }}>
-                            🍽️ Serveur
-                        </option>
-
-                    </select>
-
-                </div>
-
-                <div class="form-group">
-
-                    <label>
-                        Nouveau mot de passe
-                        <small>(Optionnel)</small>
-                    </label>
-
-                    <input type="password"
-                           name="password"
-                           placeholder="Laisser vide pour conserver l'ancien mot de passe">
-
-                </div>
-
-            </div>
-
-            <!-- BOUTONS -->
-
-            <div class="user-footer">
-
-                <a href="/admin/users"
-                   class="btn-cancel">
-
-                    <i class="fa-solid fa-arrow-left"></i>
-
-                    Annuler
-
-                </a>
-
-                <button type="submit"
-                        class="btn-update">
-
-                    <i class="fa-solid fa-floppy-disk"></i>
-
-                    Mettre à jour
-
-                </button>
-
-            </div>
-
-        </form>
-
+<a href="/admin/users/{{ $user->id }}" class="back-link"><i data-lucide="arrow-left"></i> {{ $user->name }}</a>
+<div class="page-head">
+    <div>
+        <h1>Modifier l'utilisateur</h1>
+        <p>{{ $user->name }}</p>
     </div>
-
 </div>
 
+@if($errors->any())
+    <div class="errors">Certains champs sont à corriger avant d'enregistrer.</div>
+@endif
 
-<style>
-    /*=========================================
-        EDIT USER PAGE
-=========================================*/
+@php $role = old('role', $user->role); @endphp
 
-body{
-    background:#f4f7fb;
-}
+<form method="POST" action="{{ url('/admin/users/'.$user->id) }}" class="card" style="max-width: 760px" autocomplete="off">
+    @csrf
+    @method('PUT')
+    <div class="form-section">
+        <h3>Compte</h3>
+        <p class="hint">L'e-mail sert d'identifiant pour se connecter.</p>
 
-/* PAGE */
+        <div class="field">
+            <label for="name">Nom complet</label>
+            <input class="input @error('name') is-invalid @enderror" id="name" name="name" type="text"
+                   value="{{ old('name', $user->name) }}" required autofocus>
+            @error('name')<div class="field-error">{{ $message }}</div>@enderror
+        </div>
 
-.user-edit-page{
-    padding:40px 20px;
-}
+        <div class="field-row">
+            <div class="field">
+                <label for="email">E-mail</label>
+                <input class="input @error('email') is-invalid @enderror" id="email" name="email" type="email"
+                       value="{{ old('email', $user->email) }}" placeholder="prenom@restaurant.com" autocomplete="off" required>
+                @error('email')<div class="field-error">{{ $message }}</div>@enderror
+            </div>
+            <div class="field">
+                <label for="telephone">Téléphone <span class="opt">(facultatif)</span></label>
+                <input class="input num @error('telephone') is-invalid @enderror" id="telephone" name="telephone" type="tel"
+                       value="{{ old('telephone', $user->telephone) }}" placeholder="+509 3X XX XXXX">
+                @error('telephone')<div class="field-error">{{ $message }}</div>@enderror
+            </div>
+        </div>
 
-/* CARD */
+        <div class="field">
+            <label for="password">Nouveau mot de passe <span class="opt">(laisser vide pour ne pas changer)</span></label>
+            <div class="input-affix">
+                <input class="input @error('password') is-invalid @enderror" id="password" name="password" type="password"
+                       autocomplete="new-password" placeholder="••••••••" >
+                <span style="pointer-events:auto"><button type="button" class="icon-action" id="pwToggle" title="Afficher" style="width:28px;height:28px"><i data-lucide="eye"></i></button></span>
+            </div>
+            @error('password')<div class="field-error">{{ $message }}</div>@enderror
+        </div>
+    </div>
 
-.user-edit-card{
-    max-width:820px;
-    margin:auto;
-    background:#fff;
-    border-radius:22px;
-    overflow:hidden;
-    box-shadow:
-        0 15px 40px rgba(0,0,0,.08);
-}
+    <div class="form-section">
+        <h3>Rôle</h3>
+        <p class="hint">Détermine ce que cette personne peut voir et modifier.</p>
 
-/* HEADER */
+        <div class="segmented roles">
+            <label>
+                <input type="radio" name="role" value="admin" @checked($role === 'admin')>
+                <span class="dot" style="background: var(--text)"></span>
+                <span>Administrateur<small>Accès complet, y compris finances et comptes</small></span>
+            </label>
+            <label>
+                <input type="radio" name="role" value="caissier" @checked($role === 'caissier')>
+                <span class="dot" style="background: var(--st-ready)"></span>
+                <span>Caissier<small>Encaisse et consulte les ventes</small></span>
+            </label>
+            <label>
+                <input type="radio" name="role" value="cuisinier" @checked($role === 'cuisinier')>
+                <span class="dot" style="background: var(--st-prep)"></span>
+                <span>Cuisinier<small>Écran cuisine et suivi des commandes</small></span>
+            </label>
+            <label>
+                <input type="radio" name="role" value="serveur" @checked($role === 'serveur')>
+                <span class="dot" style="background: var(--st-new)"></span>
+                <span>Serveur<small>Suit et sert les commandes des tables</small></span>
+            </label>
+        </div>
+        @error('role')<div class="field-error">{{ $message }}</div>@enderror
+        @if($user->id == auth()->id())
+            <p class="hint" style="margin:12px 0 0;color:#a35f06">C'est votre compte : si vous quittez le rôle Administrateur, vous perdrez l'accès à cette page.</p>
+        @endif
+    </div>
 
-.user-edit-header{
-    display:flex;
-    align-items:center;
-    gap:20px;
-    padding:28px 35px;
-    background:linear-gradient(135deg,#f59e0b,#d97706);
-    color:#fff;
-}
+    <div class="form-footer">
+        <a href="{{ url('/admin/users/'.$user->id) }}" class="btn">Annuler</a>
+        <button type="submit" class="btn btn-primary"><i data-lucide="check"></i> Enregistrer</button>
+    </div>
+</form>
 
-.user-edit-icon{
-    width:70px;
-    height:70px;
-    border-radius:18px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:rgba(255,255,255,.18);
-    font-size:28px;
-    backdrop-filter:blur(10px);
-}
-
-.user-edit-header h1{
-    margin:0;
-    font-size:30px;
-    font-weight:700;
-}
-
-.user-edit-header p{
-    margin-top:5px;
-    opacity:.9;
-}
-
-/* FORM */
-
-.user-form{
-    padding:35px;
-}
-
-/* GRID */
-
-.form-row{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-    gap:20px;
-}
-
-/* GROUP */
-
-.form-group{
-    margin-bottom:22px;
-}
-
-.form-group label{
-    display:block;
-    font-size:14px;
-    font-weight:700;
-    color:#374151;
-    margin-bottom:8px;
-}
-
-/* INPUT */
-
-.form-group input,
-.form-group select{
-    width:100%;
-    padding:14px 16px;
-    border:1px solid #d1d5db;
-    border-radius:14px;
-    background:#fff;
-    font-size:15px;
-    transition:.30s;
-}
-
-.form-group input:focus,
-.form-group select:focus{
-    outline:none;
-    border-color:#f59e0b;
-    box-shadow:0 0 0 4px rgba(245,158,11,.15);
-}
-
-/* PASSWORD */
-
-.form-group small{
-    color:#9ca3af;
-    font-weight:500;
-}
-
-/* ERROR */
-
-.user-error{
-    margin:30px 35px 0;
-    background:#fef2f2;
-    border-left:5px solid #ef4444;
-    color:#b91c1c;
-    padding:18px;
-    border-radius:12px;
-}
-
-.user-error strong{
-    display:block;
-    margin-bottom:8px;
-}
-
-.user-error ul{
-    margin:0;
-    padding-left:18px;
-}
-
-/* FOOTER */
-
-.user-footer{
-    display:flex;
-    justify-content:flex-end;
-    gap:15px;
-    padding:25px 35px;
-    border-top:1px solid #eee;
-    background:#fafafa;
-}
-
-/* BUTTONS */
-
-.btn-cancel{
-    text-decoration:none;
-    padding:13px 22px;
-    border-radius:12px;
-    background:#e5e7eb;
-    color:#374151;
-    font-weight:600;
-    transition:.3s;
-}
-
-.btn-cancel:hover{
-    background:#d1d5db;
-}
-
-.btn-update{
-    border:none;
-    cursor:pointer;
-    padding:13px 28px;
-    border-radius:12px;
-    color:#fff;
-    font-weight:700;
-    background:linear-gradient(135deg,#f59e0b,#d97706);
-    box-shadow:0 8px 20px rgba(245,158,11,.30);
-    transition:.30s;
-}
-
-.btn-update:hover{
-    transform:translateY(-2px);
-    box-shadow:0 12px 28px rgba(245,158,11,.40);
-}
-
-/* SELECT */
-
-select{
-    appearance:none;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%23666'%3E%3Cpath d='M5.5 7l4.5 5 4.5-5'/%3E%3C/svg%3E");
-    background-repeat:no-repeat;
-    background-position:right 15px center;
-    padding-right:45px;
-}
-
-/* RESPONSIVE */
-
-@media(max-width:768px){
-
-    .user-edit-header{
-        flex-direction:column;
-        text-align:center;
-    }
-
-    .user-form{
-        padding:25px;
-    }
-
-    .user-footer{
-        flex-direction:column-reverse;
-    }
-
-    .btn-cancel,
-    .btn-update{
-        width:100%;
-        text-align:center;
-    }
-
-}
-</style>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const pw = document.getElementById('password');
+    const btn = document.getElementById('pwToggle');
+    btn.addEventListener('click', () => {
+        const show = pw.type === 'password';
+        pw.type = show ? 'text' : 'password';
+        btn.title = show ? 'Masquer' : 'Afficher';
+        btn.innerHTML = '<i data-lucide="' + (show ? 'eye-off' : 'eye') + '"></i>';
+        if (window.lucide) lucide.createIcons();
+    });
+})();
+</script>
+@endpush

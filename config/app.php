@@ -40,7 +40,7 @@ return [
     */
 
     'debug' => (bool) env('APP_DEBUG', false),
-
+'qr_url' => env('QR_BASE_URL'),
     /*
     |--------------------------------------------------------------------------
     | Application URL
