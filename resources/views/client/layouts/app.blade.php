@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#14231f">
+    <meta name="theme-color" content="#1f1a17">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Meni') · Resto Kay-Y</title>
 
@@ -19,10 +19,10 @@
             --text: #1d1915;
             --text-2: #5e564d;
             --text-3: #968c80;
-            --brand: #0f9b8e;
-            --brand-600: #0b7f74;
-            --brand-50: #e5f4f2;
-            --dark: #14231f;
+            --brand: #ea580c;
+            --brand-600: #c2410c;
+            --brand-50: #fff3eb;
+            --dark: #1f1a17;
             --ready: #15803d;
             --ready-50: #e7f6ec;
             --warn: #b45309;
@@ -74,7 +74,7 @@
         .add-btn {
             width: 36px; height: 36px; border-radius: 50%; border: 0; cursor: pointer;
             background: var(--brand); color: #fff; display: grid; place-items: center;
-            box-shadow: 0 2px 6px rgba(15, 155, 142, .3); touch-action: manipulation;
+            box-shadow: 0 2px 6px rgba(234, 88, 12, .3); touch-action: manipulation;
         }
         .add-btn .ico { width: 18px; height: 18px; stroke-width: 2.5; }
 
@@ -89,7 +89,7 @@
         .cartbar button {
             width: 100%; max-width: 608px; margin: 0 auto; height: 56px; border: 0; border-radius: 14px; cursor: pointer;
             background: var(--dark); color: #fff; display: flex; align-items: center; gap: 12px; padding: 0 16px;
-            font-weight: 700; font-size: 15px; box-shadow: 0 8px 24px rgba(20, 35, 31, .25);
+            font-weight: 700; font-size: 15px; box-shadow: 0 8px 24px rgba(31, 26, 23, .25);
         }
         .cartbar .count { min-width: 28px; height: 28px; border-radius: 14px; background: var(--brand); display: grid; place-items: center; font-size: 13px; padding: 0 8px; }
         .cartbar .total { margin-left: auto; }

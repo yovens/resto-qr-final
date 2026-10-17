@@ -3,43 +3,49 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
-use App\Models\Commande;
 use App\Models\RestaurantTable;
+use Illuminate\Http\Request;
 
 class WaitingController extends Controller
 {
-    public function index($tableId, $commandeId = null)
+    /**
+     * Suivi des commandes.
+     *
+     * Le client ne voit QUE les commandes passées depuis son téléphone
+     * (cookie posé au moment du checkout), et seulement celles d'aujourd'hui.
+     * Les commandes des clients précédents à la même table restent invisibles.
+     */
+    public function index(Request $request, $tableId, $commandeId = null)
     {
         $table = RestaurantTable::findOrFail($tableId);
 
-        // Tout kòmand aktif sou tab sa (ki poko peye oswa anile)
-        $commandesActives = Commande::with('items.plat')
-            ->where('restaurant_table_id', $tableId)
-            ->whereNotIn('statut', ['payee', 'annulee', 'fermee'])
-            ->orderBy('created_at', 'desc')
+        // Commandes encore en cours de ce téléphone
+        $commandesActives = ClientController::mesCommandes($request, $tableId)
+            ->with('items.plat')
+            ->latest()
             ->get();
 
         if ($commandeId) {
-            $commande = Commande::with('items.plat')
-                ->where('id', $commandeId)
-                ->where('restaurant_table_id', $tableId)
-                ->firstOrFail();
+            // Une commande précise : elle doit appartenir à ce téléphone
+            // (elle peut être déjà servie ou payée, pour afficher « Mèsi »)
+            $commande = ClientController::mesCommandes($request, $tableId, false)
+                ->with('items.plat')
+                ->find($commandeId);
         } else {
-            // Dènye kòmand aktif la, oswa null
             $commande = $commandesActives->first();
         }
 
-        // Si pa gen kòmand ditou, voye l nan meni a
-        if (!$commande && !$commandeId) {
-            return redirect('/menu/' . $tableId)->with('info', 'Ou pa gen kòmand aktif sou tab sa a.');
+        // Rien à suivre sur ce téléphone : retour au menu
+        if (!$commande) {
+            return redirect('/menu/' . $tableId);
         }
 
         return view('client.waiting', [
-            'table' => $table,
-            'tableId' => $tableId,
-            'commande' => $commande,
-            'commandesActives' => $commandesActives,
-            'hasMultipleOrders' => $commandesActives->count() > 1
+            'table'             => $table,
+            'tableId'           => $tableId,
+            'commande'          => $commande,
+            'commandesActives'  => $commandesActives,
+            'hasMultipleOrders' => $commandesActives->count() > 1,
         ]);
     }
 }

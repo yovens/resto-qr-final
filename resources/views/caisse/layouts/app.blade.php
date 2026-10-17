@@ -24,7 +24,7 @@
 <aside class="sidebar" id="sidebar">
     <a href="{{ url('/caisse/dashboard') }}" class="brand">
         <span class="brand-mark">KY</span>
-        <span>Resto Kay-Y<small>Caisse</small></span>
+        <span>Resto <em>Kay-Y</em><small>Caisse</small></span>
     </a>
 
     <nav class="side-nav">

@@ -24,9 +24,9 @@
             --on-dark: #e6edf1;
             --on-dark-2: #8fa2ad;
 
-            --brand: #0f9b8e;
+            --brand: #ea580c;
             --new: #2f6fe4;
-            --prep: #e08a1e;
+            --prep: #b7791f;
             --ready: #16a34a;
             --late: #dc3b3b;
 

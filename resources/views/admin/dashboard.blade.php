@@ -254,8 +254,8 @@
     if (canvas && window.Chart) {
         const ctx = canvas.getContext('2d');
         const grad = ctx.createLinearGradient(0, 0, 0, 260);
-        grad.addColorStop(0, 'rgba(15, 155, 142, .18)');
-        grad.addColorStop(1, 'rgba(15, 155, 142, 0)');
+        grad.addColorStop(0, 'rgba(234, 88, 12, .16)');
+        grad.addColorStop(1, 'rgba(234, 88, 12, 0)');
 
         Chart.defaults.font.family = v('--font');
         Chart.defaults.color = v('--text-3');

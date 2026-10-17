@@ -79,7 +79,7 @@
     .game-head span { font-size: 12.5px; color: var(--text-3); }
     .game-box { position: relative; border-radius: 12px; overflow: hidden; background: #cfe9f3; }
     #gameCanvas { display: block; width: 100%; height: auto; touch-action: manipulation; cursor: pointer; }
-    .game-over { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 4px; background: rgba(20, 35, 31, .78); color: #fff; }
+    .game-over { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 4px; background: rgba(31, 26, 23, .78); color: #fff; }
     .game-over strong { font-size: 20px; }
     .game-over button { margin-top: 10px; }
     .game-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 13.5px; color: var(--text-2); }
@@ -279,7 +279,7 @@
     function drawBus(x, top) {
         ctx.fillStyle = '#c0392b'; rrect(x, top, 46, 22, 4); rrect(x + 2, top - 8, 42, 9, 3);
         ctx.fillStyle = '#f4c542'; ctx.fillRect(x + 5, top + 3, 10, 7); ctx.fillRect(x + 19, top + 3, 10, 7); ctx.fillRect(x + 33, top + 3, 9, 7);
-        ctx.fillStyle = '#0f9b8e'; ctx.fillRect(x + 2, top + 14, 42, 3);
+        ctx.fillStyle = '#ea580c'; ctx.fillRect(x + 2, top + 14, 42, 3);
         ctx.fillStyle = '#1d1915';
         ctx.beginPath(); ctx.arc(x + 11, top + 22, 6, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(x + 35, top + 22, 6, 0, Math.PI * 2); ctx.fill();

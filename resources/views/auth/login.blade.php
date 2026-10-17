@@ -14,11 +14,12 @@
         body { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 
         .login-side {
-            background: var(--side-bg); color: var(--side-text);
+            background: #1f1a17; color: #c9bfb5;
             display: flex; flex-direction: column; justify-content: space-between;
             padding: 40px 48px;
         }
-        .login-side .brand { height: auto; padding: 0; border: 0; }
+        .login-side .brand { height: auto; padding: 0; border: 0; color: #fff; }
+        .login-side .brand small { color: #978d84; }
         .login-side .brand-mark { width: 36px; height: 36px; font-size: 14px; }
         .login-pitch h1 { color: #fff; font-size: 30px; line-height: 1.2; letter-spacing: -.02em; margin: 0 0 14px; font-weight: 800; max-width: 420px; }
         .login-pitch p { margin: 0; max-width: 400px; font-size: 15px; line-height: 1.6; }
@@ -26,7 +27,7 @@
         .login-roles li { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; }
         .login-roles svg.lucide { width: 18px; height: 18px; color: var(--brand); flex-shrink: 0; margin-top: 1px; }
         .login-roles strong { color: #fff; display: block; font-weight: 700; }
-        .login-side footer { font-size: 12.5px; color: #5f727c; }
+        .login-side footer { font-size: 12.5px; color: #7d7268; }
 
         .login-main { display: grid; place-items: center; padding: 40px 24px; background: var(--bg); }
         .login-card { width: 100%; max-width: 380px; }
@@ -66,7 +67,7 @@
 <aside class="login-side">
     <div class="brand">
         <span class="brand-mark">KY</span>
-        <span>Resto Kay-Y<small>Espace équipe</small></span>
+        <span>Resto <em>Kay-Y</em><small>Espace équipe</small></span>
     </div>
 
     <div class="login-pitch">

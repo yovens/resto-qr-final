@@ -28,7 +28,7 @@
 <aside class="sidebar" id="sidebar">
     <a href="/admin/dashboard" class="brand">
         <span class="brand-mark">KY</span>
-        <span>Resto Kay-Y<small>Administration</small></span>
+        <span>Resto <em>Kay-Y</em><small>Administration</small></span>
     </a>
 
     <nav class="side-nav">

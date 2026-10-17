@@ -11,6 +11,7 @@ use App\Models\Plat;
 use App\Models\RestaurantTable;
 use App\Services\CartService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 
 class ClientController extends Controller
@@ -24,7 +25,50 @@ class ClientController extends Controller
     /**
      * Statuts qui terminent le suivi d'une commande côté client.
      */
-    private const STATUTS_TERMINES = ['payee', 'annulee', 'fermee'];
+    public const STATUTS_TERMINES = ['payee', 'annulee', 'fermee'];
+
+    /**
+     * Cookie (chiffré) qui garde les commandes passées depuis CE téléphone.
+     * Une table est partagée par plusieurs clients dans la journée :
+     * chaque client ne doit voir que ses propres commandes.
+     */
+    public const COOKIE_COMMANDES = 'kayy_mes_commandes';
+    private const COOKIE_MINUTES  = 12 * 60;
+
+    /**
+     * Identifiants des commandes passées depuis ce téléphone.
+     */
+    public static function mesCommandeIds(Request $request): array
+    {
+        $ids = json_decode((string) $request->cookie(self::COOKIE_COMMANDES), true);
+        return is_array($ids) ? array_values(array_filter(array_map('intval', $ids))) : [];
+    }
+
+    /**
+     * Commandes de ce téléphone sur cette table, passées aujourd'hui.
+     * $actives = true : seulement celles encore en cours (ni payées, ni archivées).
+     */
+    public static function mesCommandes(Request $request, $tableId, bool $actives = true)
+    {
+        $q = Commande::where('restaurant_table_id', $tableId)
+            ->whereIn('id', self::mesCommandeIds($request) ?: [0])
+            ->where('created_at', '>=', now()->startOfDay());
+
+        if ($actives) {
+            $q->where('archived', false)->whereNotIn('statut', self::STATUTS_TERMINES);
+        }
+
+        return $q;
+    }
+
+    /**
+     * Ajoute une commande à la liste de ce téléphone (20 dernières max).
+     */
+    private function retenirCommande(Request $request, int $id): void
+    {
+        $ids = array_slice(array_unique(array_merge(self::mesCommandeIds($request), [$id])), -20);
+        Cookie::queue(self::COOKIE_COMMANDES, json_encode(array_values($ids)), self::COOKIE_MINUTES);
+    }
 
     /**
      * Menu de la table + commande en cours éventuelle.
@@ -40,7 +84,7 @@ class ClientController extends Controller
             'allCategories'  => $allCategories,
             'tableId'        => $tableId,
             'table'          => $table,
-            'activeCommande' => $this->getActiveCommande($tableId),
+            'activeCommande' => self::mesCommandes($request, $tableId)->latest()->first(),
             'serviceRate'    => self::TAUX_SERVICE,
         ]);
     }
@@ -133,6 +177,7 @@ class ClientController extends Controller
 
         $commande->load(['table', 'items.plat']);
         session()->forget('cart');
+        $this->retenirCommande($request, $commande->id);
 
         // Si le serveur temps réel (Reverb) est arrêté, la commande reste valide :
         // on ne fait pas échouer la requête (sinon le client renverrait la commande).
@@ -177,9 +222,8 @@ class ClientController extends Controller
             'quantite' => 'required|integer|min:1|max:50',
         ]);
 
-        $commande = Commande::where('id', $commandeId)
-            ->where('restaurant_table_id', $tableId)
-            ->whereNotIn('statut', ['payee', 'annulee', 'fermee', 'archivee'])
+        $commande = self::mesCommandes($request, $tableId)
+            ->where('id', $commandeId)
             ->firstOrFail();
 
         $plat = Plat::where('disponible', true)->findOrFail($request->plat_id);
@@ -240,9 +284,9 @@ class ClientController extends Controller
     /**
      * /waiting/{table} sans numéro de commande : redirige vers la dernière commande active.
      */
-    public function waiting($tableId)
+    public function waiting(Request $request, $tableId)
     {
-        $commande = $this->getActiveCommande($tableId);
+        $commande = self::mesCommandes($request, $tableId)->latest()->first();
 
         if (!$commande) {
             return redirect('/menu/' . $tableId);
@@ -259,15 +303,4 @@ class ClientController extends Controller
         return (float) ($plat->prix_promo ?: $plat->prix);
     }
 
-    /**
-     * Dernière commande active d'une table.
-     */
-    private function getActiveCommande($tableId)
-    {
-        return Commande::where('restaurant_table_id', $tableId)
-            ->where('archived', false)
-            ->whereNotIn('statut', self::STATUTS_TERMINES)
-            ->latest()
-            ->first();
-    }
 }
