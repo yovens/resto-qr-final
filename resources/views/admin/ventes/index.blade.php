@@ -35,6 +35,12 @@
 @endphp
 
 @section('content')
+@if(session('success'))
+    <div class="flash"><i data-lucide="check-circle-2"></i> {{ session('success') }}</div>
+@endif
+@if(session('error'))
+    <div class="flash" style="background:#fdecec;color:#9b2020;border-color:#f5c2c2"><i data-lucide="alert-triangle"></i> {{ session('error') }}</div>
+@endif
 
 <div class="page-head">
     <div>

@@ -10,8 +10,11 @@
         'en_preparation' => ['prep',   'En préparation', 'cuisine'],
         'preparation'    => ['prep',   'En cuisine',     'cuisine'],
         'prete'          => ['ready',  'Prête',          'prete'],
+        'servie'         => ['served', 'Servie · à payer', 'prete'],
     ];
-    $nbPretes  = $commandes->where('statut', 'prete')->count();
+    // « Servie » = déjà à table mais pas encore payée : à encaisser aussi
+    $aEncaisser = ['prete', 'servie'];
+    $nbPretes  = $commandes->whereIn('statut', $aEncaisser)->count();
     $nbCuisine = $commandes->count() - $nbPretes;
     $q = trim((string) request('q'));
 @endphp
@@ -74,7 +77,7 @@
                         <td class="num muted">{{ $commande->created_at->isToday() ? $commande->created_at->format('H:i') : $commande->created_at->format('d/m H:i') }}</td>
                         <td class="right num"><strong>{{ $fmt($commande->total) }}</strong> <span class="muted">HTG</span></td>
                         <td class="right">
-                            @if($commande->statut === 'prete')
+                            @if(in_array($commande->statut, $aEncaisser))
                                 <a href="{{ route('caisse.encaisser', $commande->id) }}" class="btn btn-primary"><i data-lucide="wallet"></i> Encaisser</a>
                             @else
                                 <span class="muted" style="font-size:12.5px">En attente de la cuisine</span>

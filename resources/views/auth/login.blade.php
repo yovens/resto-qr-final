@@ -131,7 +131,7 @@
     </div>
 </main>
 
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="{{ asset('vendor/lucide.min.js') }}"></script>
 <script>
 (function () {
     window.lucide && lucide.createIcons();

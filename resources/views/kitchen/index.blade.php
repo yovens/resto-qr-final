@@ -235,8 +235,8 @@
 <div class="toasts" id="toasts"></div>
 <audio id="notifSound" src="{{ asset('sounds/notification.mp3') }}" preload="auto"></audio>
 
-<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="{{ asset('vendor/pusher.min.js') }}"></script>
+<script src="{{ asset('vendor/lucide.min.js') }}"></script>
 <script>
 (function () {
     'use strict';
@@ -482,39 +482,62 @@
         };
     }
 
-    const pusher = new Pusher(@json(config('broadcasting.connections.reverb.key')), {
-        wsHost: @json(config('broadcasting.connections.reverb.options.host')),
-        wsPort: @json((int) config('broadcasting.connections.reverb.options.port')),
-        forceTLS: false,
-        enabledTransports: ['ws', 'wss'],
-        disableStats: true,
-        cluster: 'mt1',
-    });
-
     const conn = document.getElementById('conn');
-    pusher.connection.bind('state_change', ({ current }) => {
-        const on = current === 'connected';
-        conn.classList.toggle('on', on);
-        conn.textContent = on ? 'En direct' : 'Hors ligne';
-    });
-
-    const channel = pusher.subscribe('kitchen');
-
-    channel.bind('new-order', async (e) => {
-        const o = normalize(e);
-        if (!o.id || orders.has(o.id)) return;
-        place({ ...o, statut: 'nouvelle' }, { highlight: true });
-        await ding();
-        announce(o);
-    });
+    const setConn = (on, txt) => { conn.classList.toggle('on', on); conn.textContent = txt || (on ? 'En direct' : 'Hors ligne'); };
 
     // Les noms d'événements diffèrent entre les écrans existants : on écoute les deux variantes.
+    const onNew      = async (e) => { const o = normalize(e); if (!o.id || orders.has(o.id)) return; place({ ...o, statut: 'nouvelle' }, { highlight: true }); await ding(); announce(o); };
     const onAccepted = (e) => { const o = normalize(e); const cur = orders.get(o.id); if (cur && cur.statut !== 'en_preparation') { place({ ...cur, statut: 'en_preparation' }); } };
     const onReady    = (e) => { const o = normalize(e); const cur = orders.get(o.id); if (cur && cur.statut !== 'prete') { place({ ...cur, statut: 'prete' }); ding(); } };
-    channel.bind('order-accepted', onAccepted);
-    channel.bind('accepted', onAccepted);
-    channel.bind('order-ready', onReady);
-    channel.bind('ready', onReady);
+
+    // 1) Temps réel (Reverb). S'il est arrêté, l'écran continue avec l'actualisation automatique.
+    try {
+        if (!window.Pusher) throw new Error('Pusher absent');
+        const pusher = new Pusher(@json(config('broadcasting.connections.reverb.key') ?: 'local'), {
+            wsHost: @json(config('broadcasting.connections.reverb.options.host') ?: request()->getHost()),
+            wsPort: @json((int) (config('broadcasting.connections.reverb.options.port') ?: 8080)),
+            forceTLS: false,
+            enabledTransports: ['ws', 'wss'],
+            disableStats: true,
+            cluster: 'mt1',
+        });
+        pusher.connection.bind('state_change', ({ current }) => setConn(current === 'connected', current === 'connected' ? 'En direct' : 'Actualisation auto'));
+        const channel = pusher.subscribe('kitchen');
+        channel.bind('new-order', onNew);
+        channel.bind('order-accepted', onAccepted);
+        channel.bind('accepted', onAccepted);
+        channel.bind('order-ready', onReady);
+        channel.bind('ready', onReady);
+    } catch (err) {
+        setConn(false, 'Actualisation auto');
+    }
+
+    // 2) Filet de sécurité : relit la liste toutes les 8 s (commandes prises en caisse,
+    //    serveur temps réel arrêté, autre écran qui a changé un statut...).
+    const DATA_URL = @json(route('cuisine.data'));
+    let polling = false;
+    async function sync() {
+        if (polling || document.hidden) return;
+        polling = true;
+        try {
+            const res = await fetch(DATA_URL, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, cache: 'no-store' });
+            if (res.status === 401 || res.status === 419) { location.reload(); return; }
+            if (!res.ok) return;
+            const list = await res.json();
+            const ids = new Set(list.map(o => o.id));
+            let nouvelles = [];
+            list.forEach(o => {
+                const cur = orders.get(o.id);
+                if (!cur) { place(o, { highlight: true }); if (o.statut === 'nouvelle') nouvelles.push(o); }
+                else if (cur.statut !== o.statut) place({ ...cur, statut: o.statut });
+            });
+            [...orders.keys()].forEach(id => { if (!ids.has(id)) { const cur = orders.get(id); place({ ...cur, statut: 'servie' }); } });
+            if (nouvelles.length) { await ding(); nouvelles.forEach(announce); }
+        } catch (e) { /* réseau local coupé : on réessaie au prochain tour */ }
+        finally { polling = false; }
+    }
+    setInterval(sync, 8000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
 
     /* ======================================================
        Démarrage

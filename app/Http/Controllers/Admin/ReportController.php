@@ -3,66 +3,53 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Commande;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
+    /**
+     * Rapports de ventes.
+     * Une vente = une commande au statut « payee » (c'est ce que la caisse enregistre).
+     * Les regroupements sont faits en PHP : fonctionne sur MySQL comme sur SQLite.
+     */
     public function index(Request $request)
     {
-        // Filtè ane ak mwa (si itilizatè a chwazi yo)
-        $selectedYear = $request->input('year', date('Y'));
-        $selectedMonth = $request->input('month', date('m'));
+        $selectedYear  = (int) $request->input('year', date('Y'));
+        $selectedMonth = (int) $request->input('month', date('m'));
 
-        // Totèl jeneral
-        $totalVentesGlobal = DB::table('commandes')->where('status', 'payé')->sum('total');
-        $totalCommandesGlobal = DB::table('commandes')->count();
+        $payees = fn () => Commande::query()->where('statut', 'payee');
 
-        // Lavant pou ane chwazi a
-        $ventesAnnee = DB::table('commandes')
-            ->whereYear('created_at', $selectedYear)
-            ->where('status', 'payé')
-            ->sum('total');
+        $totalVentesGlobal    = (float) $payees()->sum('total');
+        $totalCommandesGlobal = Commande::count();
 
-        $commandesAnneeCount = DB::table('commandes')
-            ->whereYear('created_at', $selectedYear)
-            ->count();
+        $ventesAnnee         = (float) $payees()->whereYear('created_at', $selectedYear)->sum('total');
+        $commandesAnneeCount = Commande::whereYear('created_at', $selectedYear)->count();
 
-        // Lavant pou mwa ak ane chwazi a
-        $ventesMois = DB::table('commandes')
+        $ventesMois = (float) $payees()
             ->whereYear('created_at', $selectedYear)
             ->whereMonth('created_at', $selectedMonth)
-            ->where('status', 'payé')
             ->sum('total');
 
-        $commandesMoisCount = DB::table('commandes')
-            ->whereYear('created_at', $selectedYear)
+        $commandesMoisCount = Commande::whereYear('created_at', $selectedYear)
             ->whereMonth('created_at', $selectedMonth)
             ->count();
 
-        // Estatistik pa mwa pou ane chwazi a (pou tablo rezime a)
-        $monthlyStats = DB::table('commandes')
-            ->select(
-                DB::raw('MONTH(created_at) as mois'),
-                DB::raw('SUM(total) as total_ventes'),
-                DB::raw('COUNT(*) as total_commandes')
-            )
+        $monthlyStats = $payees()
             ->whereYear('created_at', $selectedYear)
-            ->where('status', 'payé')
-            ->groupBy('mois')
-            ->orderBy('mois')
-            ->get();
+            ->get(['total', 'created_at'])
+            ->groupBy(fn ($c) => (int) $c->created_at->format('n'))
+            ->map(fn ($g, $mois) => (object) [
+                'mois'            => $mois,
+                'total_ventes'    => (float) $g->sum('total'),
+                'total_commandes' => $g->count(),
+            ])
+            ->sortKeys()
+            ->values();
 
-        // Lis ane ki disponib nan baz done a pou filtè a
-        $years = DB::table('commandes')
-            ->select(DB::raw('YEAR(created_at) as year'))
-            ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year');
-
-        if ($years->isEmpty()) {
-            $years = collect([date('Y')]);
-        }
+        $premiere = Commande::min('created_at');
+        $debut    = $premiere ? (int) date('Y', strtotime($premiere)) : (int) date('Y');
+        $years    = collect(range((int) date('Y'), min($debut, (int) date('Y'))));
 
         return view('admin.reports.index', compact(
             'totalVentesGlobal',

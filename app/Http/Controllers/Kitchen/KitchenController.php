@@ -31,6 +31,32 @@ class KitchenController extends Controller
     }
 
     /**
+     * Liste JSON pour l'actualisation automatique de l'écran cuisine
+     * (fonctionne même si le serveur temps réel est arrêté).
+     */
+    public function data()
+    {
+        $commandes = Commande::with(['items.plat', 'table'])
+            ->whereIn('statut', self::STATUTS_CUISINE)
+            ->where('archived', false)
+            ->oldest()
+            ->get()
+            ->map(fn ($c) => [
+                'id'      => $c->id,
+                'statut'  => $c->statut,
+                'table'   => $c->table->numero ?? null,
+                'created' => $c->created_at->timestamp,
+                'note'    => $c->note,
+                'items'   => $c->items->map(fn ($i) => [
+                    'q'   => $i->quantite,
+                    'nom' => $i->plat->nom ?? 'Plat supprimé',
+                ])->values(),
+            ])->values();
+
+        return response()->json($commandes)->header('Cache-Control', 'no-store');
+    }
+
+    /**
      * Mettre à jour le statut d'une commande.
      * Répond en JSON quand l'appel vient de l'écran cuisine (fetch),
      * sinon redirige comme avant.
@@ -43,15 +69,27 @@ class KitchenController extends Controller
 
         $commande = Commande::with(['items.plat', 'table'])->findOrFail($id);
 
+        // Une commande déjà encaissée ne doit jamais revenir en arrière.
+        if (in_array($commande->statut, ['payee', 'annulee'], true)) {
+            return $request->expectsJson()
+                ? response()->json(['id' => $commande->id, 'statut' => $commande->statut])
+                : back();
+        }
+
         if ($commande->statut !== $data['statut']) {
             $commande->statut = $data['statut'];
             $commande->save();
 
-            match ($data['statut']) {
-                'en_preparation' => broadcast(new OrderAcceptedEvent($commande)),
-                'prete'          => broadcast(new OrderReadyEvent($commande)),
-                default          => null,
-            };
+            // Si le serveur temps réel est arrêté, le statut est quand même enregistré.
+            try {
+                match ($data['statut']) {
+                    'en_preparation' => broadcast(new OrderAcceptedEvent($commande)),
+                    'prete'          => broadcast(new OrderReadyEvent($commande)),
+                    default          => null,
+                };
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         if ($request->expectsJson()) {

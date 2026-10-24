@@ -3,52 +3,76 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Commande;
+use App\Services\BackupService;
+use Illuminate\Http\Request;
 
 class VentesController extends Controller
 {
-   public function index(Request $request)
-{
-    // Nou filtre sèlman sou kòmand ki achive (si se sa ou vle wè nan istwa a)
-    $query = Commande::with('table', 'items.plat')->where('archived', true);
+    /**
+     * Historique des ventes : commandes payées (ou archivées par une clôture).
+     */
+    public function index(Request $request)
+    {
+        $vendues = fn ($q) => $q->where(fn ($w) => $w->where('statut', 'payee')->orWhere('archived', true))
+                                 ->whereNotIn('statut', ['annulee']);
 
-    // Itilize 'month' jan li ye nan HTML la
-    if ($request->filled('month')) {
-        $query->whereMonth('created_at', $request->month);
+        $query = Commande::with('table', 'items.plat')->tap($vendues);
+
+        if ($request->filled('month')) {
+            $query->whereMonth('created_at', (int) $request->month);
+        }
+        if ($request->filled('year')) {
+            $query->whereYear('created_at', (int) $request->year);
+        }
+
+        $commandes = $query->latest()->paginate(30)->withQueryString();
+        $total     = (float) (clone $query)->reorder()->sum('total');
+
+        // Ventes par mois de l'année choisie (calcul en PHP : fonctionne sur MySQL et SQLite)
+        $annee   = (int) ($request->year ?: date('Y'));
+        $parMois = Commande::query()->tap($vendues)
+            ->whereYear('created_at', $annee)
+            ->get(['total', 'created_at'])
+            ->groupBy(fn ($c) => (int) $c->created_at->format('n'))
+            ->map(fn ($g, $mois) => (object) ['mois' => $mois, 'total' => (float) $g->sum('total')])
+            ->sortKeys()
+            ->values();
+
+        return view('admin.ventes.index', compact('commandes', 'total', 'parMois'));
     }
 
-    // Itilize 'year' jan li ye nan HTML la
-    if ($request->filled('year')) {
-        $query->whereYear('created_at', $request->year);
-    }
-
-    $commandes = $query->latest()->get();
-    $total = $commandes->sum('total');
-
-    // Statistik par mwa
-    $parMois = Commande::selectRaw('MONTH(created_at) as mois, SUM(total) as total')
-        ->where('archived', true) // Asire nou pran sa ki achive sèlman
-        ->whereYear('created_at', $request->year ?? date('Y'))
-        ->groupBy('mois')
-        ->orderBy('mois')
-        ->get();
-
-    return view('admin.ventes', compact('commandes', 'total', 'parMois'));
-}
     public function archive($id)
-{
-    $commande = Commande::findOrFail($id);
-    $commande->update(['archived' => true]);
+    {
+        Commande::findOrFail($id)->update(['archived' => true]);
 
-    return back()->with('success', 'Commande archivée avec succès !');
-}
-public function cloturerJournee()
-{
-    // Nou chanje estati tout kòmand ki "aktif" (archived = 0) pou yo tounen "archived" (1)
-    \App\Models\Commande::where('archived', false)
-                        ->update(['archived' => true]);
+        return back()->with('success', 'Commande archivée.');
+    }
 
-    return back()->with('success', 'Jounen an fèmen avèk siksè!');
-}
+    /**
+     * Clôture de la journée :
+     *  - archive seulement les commandes PAYÉES (une commande non payée reste visible en caisse) ;
+     *  - fait une sauvegarde automatique de la base.
+     */
+    public function cloturerJournee(BackupService $backups)
+    {
+        $archivees = Commande::where('archived', false)->where('statut', 'payee')->update(['archived' => true]);
+
+        $restantes = Commande::where('archived', false)->whereNotIn('statut', ['payee', 'annulee'])->count();
+
+        $sauvegarde = null;
+        try {
+            $sauvegarde = $backups->creer(true);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        $message = "Journée clôturée : $archivees commande(s) archivée(s).";
+        if ($restantes) {
+            $message .= " Attention : $restantes commande(s) non payée(s) restent ouvertes.";
+        }
+        $message .= $sauvegarde ? ' Sauvegarde créée.' : ' La sauvegarde automatique a échoué, faites-en une manuellement.';
+
+        return back()->with($restantes || !$sauvegarde ? 'error' : 'success', $message);
+    }
 }

@@ -56,6 +56,9 @@
         <h1>Bonjour {{ \Illuminate\Support\Str::of(auth()->user()->name ?? '')->before(' ') }}</h1>
         <p>{{ ucfirst(now()->locale('fr')->isoFormat('dddd D MMMM YYYY')) }} · <span class="updated-at" id="updatedAt">mis à jour à l'instant</span></p>
     </div>
+    <div class="page-actions">
+        <a href="{{ route('caisse.commandes.create') }}" class="btn btn-primary"><i data-lucide="plus"></i> Nouvelle commande</a>
+    </div>
 </div>
 
 {{-- Indicateurs --}}
@@ -118,7 +121,10 @@
                     <tr class="ready-row" data-id="{{ $commande->id }}">
                         <td><span class="table-pill"><i data-lucide="armchair"></i>{{ $commande->table->numero ?? $commande->restaurant_table_id }}</span></td>
                         <td class="num">#{{ $commande->id }}</td>
-                        <td><span class="wait num" data-since="{{ \Carbon\Carbon::parse($commande->created_at)->timestamp }}">{{ \Carbon\Carbon::parse($commande->created_at)->format('H:i') }}</span></td>
+                        <td>
+                            <span class="wait num" data-since="{{ \Carbon\Carbon::parse($commande->created_at)->timestamp }}">{{ \Carbon\Carbon::parse($commande->created_at)->format('H:i') }}</span>
+                            @if($commande->statut === 'servie')<span class="status served" style="margin-left:6px">Servie</span>@endif
+                        </td>
                         <td class="right num"><strong>{{ $fmt($commande->total) }}</strong> <span class="muted">HTG</span></td>
                         <td class="right">
                             <a href="{{ route('caisse.encaisser', $commande->id) }}" class="btn btn-primary"><i data-lucide="wallet"></i> Encaisser</a>
@@ -211,7 +217,7 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="{{ asset('vendor/chart.umd.min.js') }}"></script>
 <script>
 (function () {
     const API_URL      = @json(route('caisse.api.dashboard'));
@@ -294,7 +300,9 @@
             const amount = el('span'); amount.append(el('strong', null, money(c.total)), ' ', el('span', 'muted', 'HTG'));
             const btn = el('a', 'btn btn-primary'); btn.href = ENCAISSER + '/' + c.id; btn.innerHTML = '<i data-lucide="wallet"></i>'; btn.append(' Encaisser');
 
-            tr.append(td(pill), td('#' + c.id, 'num'), td(since), td(amount, 'right num'), td(btn, 'right'));
+            const sinceCell = td(since);
+            if (c.statut === 'servie') { const b = el('span', 'status served', 'Servie'); b.style.marginLeft = '6px'; sinceCell.append(b); }
+            tr.append(td(pill), td('#' + c.id, 'num'), sinceCell, td(amount, 'right num'), td(btn, 'right'));
             body.append(tr);
 
             if (!known.has(Number(c.id))) { known.add(Number(c.id)); fresh.push({ id: c.id, table: tableNum }); }

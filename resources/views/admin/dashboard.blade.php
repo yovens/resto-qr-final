@@ -30,6 +30,12 @@
 @endphp
 
 @section('content')
+@if(session('success'))
+    <div class="flash"><i data-lucide="check-circle-2"></i> {{ session('success') }}</div>
+@endif
+@if(session('error'))
+    <div class="flash" style="background:#fdecec;color:#9b2020;border-color:#f5c2c2"><i data-lucide="alert-triangle"></i> {{ session('error') }}</div>
+@endif
 
 <div class="page-head">
     <div>
@@ -236,11 +242,11 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="{{ asset('vendor/chart.umd.min.js') }}"></script>
 <script>
 (function () {
     const salesData   = @json($salesChart ?? []);
-    const factureBase = @json(url('/facture'));
+    const factureBase = @json(url('/admin/facture'));
     const css = getComputedStyle(document.documentElement);
     const v = (name) => css.getPropertyValue(name).trim();
 

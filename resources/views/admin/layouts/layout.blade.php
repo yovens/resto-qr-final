@@ -77,6 +77,9 @@
         <a href="/admin/profile" class="{{ request()->is('admin/profile*') ? 'active' : '' }}">
             <i data-lucide="settings"></i> Paramètres
         </a>
+        <a href="/admin/backups" class="{{ request()->is('admin/backups*') ? 'active' : '' }}">
+            <i data-lucide="database-backup"></i> Sauvegardes
+        </a>
     </nav>
 
     <div class="side-footer">
@@ -122,7 +125,7 @@
     </main>
 </div>
 
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="{{ asset('vendor/lucide.min.js') }}"></script>
 <script>
     lucide.createIcons();
 

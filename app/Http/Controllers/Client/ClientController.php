@@ -10,6 +10,8 @@ use App\Models\CommandeItem;
 use App\Models\Plat;
 use App\Models\RestaurantTable;
 use App\Services\CartService;
+use App\Services\CommandeService;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +22,7 @@ class ClientController extends Controller
      * Taux de service ajouté au total (10 %).
      * Le même taux est affiché dans le panier du client.
      */
-    public const TAUX_SERVICE = 0.10;
+    public const TAUX_SERVICE = CommandeService::TAUX_SERVICE;
 
     /**
      * Statuts qui terminent le suivi d'une commande côté client.
@@ -130,62 +132,17 @@ class ClientController extends Controller
             'items.min'      => 'Panye a vid.',
         ]);
 
-        // Regroupe les doublons éventuels
-        $quantites = [];
-        foreach ($data['items'] as $it) {
-            $quantites[$it['plat_id']] = ($quantites[$it['plat_id']] ?? 0) + $it['quantite'];
-        }
-
-        $plats = Plat::whereIn('id', array_keys($quantites))->where('disponible', true)->get()->keyBy('id');
-
-        $manquants = array_diff(array_keys($quantites), $plats->keys()->all());
-        if ($manquants) {
-            $noms = Plat::whereIn('id', $manquants)->pluck('nom')->implode(', ');
+        try {
+            $commande = app(CommandeService::class)->creer((int) $data['table_id'], $data['items'], $data['note'] ?? null);
+        } catch (ValidationException $e) {
             return response()->json([
-                'success'   => false,
-                'message'   => ($noms ?: 'Yon plat') . ' pa disponib ankò. Retire l nan panye a.',
-                'manquants' => array_values($manquants),
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first() ?: 'Kòmand lan pa pase.',
             ], 422);
         }
 
-        $commande = DB::transaction(function () use ($data, $quantites, $plats) {
-            $sousTotal = 0;
-            foreach ($quantites as $platId => $q) {
-                $sousTotal += $this->prix($plats[$platId]) * $q;
-            }
-            $service = round($sousTotal * self::TAUX_SERVICE);
-
-            $commande = Commande::create([
-                'restaurant_table_id' => $data['table_id'],
-                'total'               => $sousTotal + $service,
-                'statut'              => 'nouvelle',
-                'note'                => $data['note'] ?? null,
-                'archived'            => false,
-            ]);
-
-            foreach ($quantites as $platId => $q) {
-                CommandeItem::create([
-                    'commande_id' => $commande->id,
-                    'plat_id'     => $platId,
-                    'quantite'    => $q,
-                    'prix'        => $this->prix($plats[$platId]),
-                ]);
-            }
-
-            return $commande;
-        });
-
-        $commande->load(['table', 'items.plat']);
         session()->forget('cart');
         $this->retenirCommande($request, $commande->id);
-
-        // Si le serveur temps réel (Reverb) est arrêté, la commande reste valide :
-        // on ne fait pas échouer la requête (sinon le client renverrait la commande).
-        try {
-            broadcast(new NewOrderEvent($commande))->toOthers();
-        } catch (\Throwable $e) {
-            report($e);
-        }
 
         return response()->json([
             'success'     => true,
@@ -300,7 +257,7 @@ class ClientController extends Controller
      */
     private function prix(Plat $plat): float
     {
-        return (float) ($plat->prix_promo ?: $plat->prix);
+        return CommandeService::prix($plat);
     }
 
 }

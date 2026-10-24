@@ -32,7 +32,10 @@
         <a href="{{ url('/caisse/dashboard') }}" class="{{ request()->is('caisse/dashboard') ? 'active' : '' }}">
             <i data-lucide="layout-dashboard"></i> Tableau de bord
         </a>
-        <a href="{{ url('/caisse/commandes') }}" class="{{ request()->is('caisse/commandes*') || request()->is('caisse/encaisser*') ? 'active' : '' }}">
+        <a href="{{ route('caisse.commandes.create') }}" class="{{ request()->is('caisse/commandes/nouvelle') ? 'active' : '' }}">
+            <i data-lucide="plus-circle"></i> Nouvelle commande
+        </a>
+        <a href="{{ url('/caisse/commandes') }}" class="{{ (request()->is('caisse/commandes*') && !request()->is('caisse/commandes/nouvelle')) || request()->is('caisse/encaisser*') ? 'active' : '' }}">
             <i data-lucide="bell-ring"></i> À encaisser
             <span class="side-count {{ $pretes > 0 ? 'alert' : '' }}" id="commandesPretesBadge">{{ $pretes }}</span>
         </a>
@@ -95,7 +98,7 @@
     .side-count:empty { display: none; }
 </style>
 
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="{{ asset('vendor/lucide.min.js') }}"></script>
 <script>
     window.lucide && lucide.createIcons();
 
