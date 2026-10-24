@@ -86,10 +86,10 @@
         {{-- Colonne image --}}
         <div class="card form-section">
             <h3>Photo</h3>
-            <p class="hint">JPG ou PNG, format paysage de préférence.</p>
+            <p class="hint">JPG, PNG ou WEBP, format paysage de préférence. La photo est réduite automatiquement.</p>
 
             <label class="dropzone {{ $imageUrl ? 'has-image' : '' }}" id="dropzone">
-                <input type="file" name="image" accept="image/*" id="imageInput">
+                <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" id="imageInput">
                 <img id="imagePreview" src="{{ $imageUrl ?? '' }}" alt="" @if(!$imageUrl) hidden @endif>
                 <span class="dropzone-empty">
                     <i data-lucide="image-plus"></i>
@@ -113,10 +113,48 @@
     const input   = document.getElementById('imageInput');
     const preview = document.getElementById('imagePreview');
 
-    input.addEventListener('change', () => {
+    const MAX = 1200;  // px, plus grand côté
+    let erreur = null;
+
+    function montrerErreur(msg) {
+        if (!erreur) { erreur = document.createElement('div'); erreur.className = 'field-error'; zone.after(erreur); }
+        erreur.textContent = msg || '';
+        erreur.hidden = !msg;
+    }
+
+    // Réduit la photo dans le navigateur AVANT l'envoi :
+    // envoi rapide sur le Wi-Fi et pas de blocage par la limite d'upload de PHP (2 Mo par défaut).
+    async function reduire(file) {
+        if (!window.createImageBitmap || !window.DataTransfer) return null;
+        const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        const r = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+        if (r === 1 && file.size < 900 * 1024) return null;            // déjà légère
+        const c = document.createElement('canvas');
+        c.width = Math.round(bmp.width * r); c.height = Math.round(bmp.height * r);
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(bmp, 0, 0, c.width, c.height);
+        const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.82));
+        if (!blob) return null;
+        return new File([blob], (file.name.replace(/\.[^.]+$/, '') || 'photo') + '.jpg', { type: 'image/jpeg' });
+    }
+
+    input.addEventListener('change', async () => {
         const file = input.files && input.files[0];
+        montrerErreur(null);
         if (!file) return;
-        preview.src = URL.createObjectURL(file);
+        if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) {
+            input.value = '';
+            montrerErreur('Format non accepté (' + (file.name.split('.').pop() || '?').toUpperCase() + '). Choisissez une photo JPG, PNG ou WEBP.');
+            return;
+        }
+        try {
+            const petite = await reduire(file);
+            if (petite) {
+                const dt = new DataTransfer(); dt.items.add(petite); input.files = dt.files;
+            }
+        } catch (e) { /* on envoie l'original, le serveur le réduira */ }
+        preview.src = URL.createObjectURL(input.files[0]);
         preview.hidden = false;
         zone.classList.add('has-image');
     });
